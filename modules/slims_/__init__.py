@@ -351,6 +351,7 @@ def slims_samples(
             logger.debug("Augmenting existing samples")
             records = get_records(
                 _parse_criteria(config.slims.criteria),
+                content_type=config.slims.content_type,
                 connection=slims_connection,
                 slims_id=[s.id for s in samples],
             )
@@ -358,25 +359,25 @@ def slims_samples(
             logger.debug("Fetching samples by ID")
             records = get_records(
                 _parse_criteria(config.slims.criteria),
+                content_type=config.slims.content_type,
                 connection=slims_connection,
                 slims_id=config.slims.id,
             )
-        elif config.slims.criteria is not None:
+        else:
             logger.debug(f"Fetching samples from the last {config.slims.novel_max_age}")
             records = get_records(
                 _parse_criteria(config.slims.criteria),
+                content_type=config.slims.content_type,
                 connection=slims_connection,
                 max_age=config.slims.novel_max_age,
             )
-        else:
-            logger.error("No way to fetch samples from SLIMS")
-            return None
 
         if config.slims.derived.samples:
             records = [
                 record
                 for original in get_derived_records(
                     _parse_criteria(config.slims.derived.criteria),
+                    content_type=config.slims.derived.content_type,
                     connection=slims_connection,
                     derived_from=records,
                 ).values()
@@ -385,21 +386,19 @@ def slims_samples(
 
         if config.slims.bioinfo.check:
             bioinfo = get_derived_records(
-                _parse_criteria(config.slims.bioinfo.criteria),
+                _parse_criteria(config.slims.bioinfo.check_criteria),
                 connection=slims_connection,
                 derived_from=records,
-                content_type=config.slims.derived_bioinfo.content_type,
+                content_type=config.slims.bioinfo.content_type,
             )
-            for sample in bioinfo.keys():
+            for record in bioinfo.keys():
                 logger.info(
-                    f"Skipping {sample.id} as it already has bioinformatics in SLIMS "
-                    "(use --slims_derived_bioinfo_ignore_existing) to override"
+                    f"Skipping {record.cntn_id.value} with completed bioinformatics"
                 )
             records = [
                 record
                 for record in records
-                if config.slims.derived_bioinfo.ignore_existing
-                or record.pk() not in [b.pk() for b in bioinfo.keys()]
+                if record.pk() not in [b.pk() for b in bioinfo.keys()]
             ]
 
         slims_samples = samples.from_records(records, config)
