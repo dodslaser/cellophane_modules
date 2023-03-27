@@ -91,8 +91,10 @@ def _parse_criteria(criteria: str) -> Criterion:
             return equals(field, value)
         case [field, "not_equals", value]:
             return is_not(equals(field, value))
-        case [field, "is_one_of", *values]:
+        case [field, "one_of", *values]:
             return is_one_of(field, values)
+        case [field, "not_one_of", *values]:
+            return is_not(is_one_of(field, values))
 
         case [field, "equals_ignore_case", value]:
             return equals_ignore_case(field, value)
