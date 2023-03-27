@@ -6,27 +6,74 @@ Sometimes the records holding sample information are derived from a parent recor
 
 Optionally, the `bioinfo.*` parameters can be used to add/update/check "biofinformatics" objects to track the state of a secondary analysis. On pipeline completion/failure the specified field on the bioinformatics objects will be updated. to reflect this state. The state of these objects can then be checked by the wrapper to determine what samples should be excluded from analysis.
 
+While it is possible to manually use the [mixin](#Mixins) methods manually, it is recomended to rely on the provided hooks.
+
 ## Configuration
 
-Option                      | Type      | Required | Default | Description
-----------------------------|-----------|----------|---------|-------------
-`url`                       | str       | x        |         | SLIMS Server URL
-`username`                  | str       | x        |         | SLIMS username
-`password`                  | str       | x        |         | SLIMS password
-`content_type`              | int       | x        |         | Content type PK for sample records
-`criteria`                  | str       | x        |         | SLIMS criteria for finding records (see [Criteria](#Criteria))
-`map_field`                 | list[str] |          |         | Mapping of keys to SLIMS field(s) (see [Fields](#Fields)/[Mappings](#Mappings))
-`derived_from.criteria`     | str       |          |         | SLIMS criteria for finding parent samples (see [Criteria](#Criteria))
-`derived_from.content_type` | int       |          |         | Content type PK for parent records
-`bioinfo.content_type`      | int       |          |         | Content type PK for bioinformatics records
-`bioinfo.state_field`       | str       |          |         | Field with state of bioinformatics objects (see [Fields](#Fields))
-`bioinfo.create`            | bool      |          | false   | Create bioinformatics objects
-`bioinfo.check`             | bool      |          | false   | Check state of existing bioinformatics records
-`bioinfo.check_criteria`    | str       |          |         | Criteria for checking completed bioinformatics (see [Criteria](#Criteria))
-`id`                        | list[str] |          |         | Manually select SLIMS Sample ID(s)
-`allow_duplicates`          | bool      |          | false   | Allow duplicate samples (eg. if a pre-hook can handle this)
-`dry_run`                   | bool      |          | false   | Do not create/update SLIMS bioinformatics objects
-`novel_max_age`             | str       |          | 1 year  | Maximum age of novel samples (eg. "4 days", "2 months", "1 year")
+Option                            | Type      | Required | Default | Description
+----------------------------------|-----------|----------|---------|-------------
+`slims.url`                       | str       | x        |         | SLIMS Server URL
+`slims.username`                  | str       | x        |         | SLIMS username
+`slims.password`                  | str       | x        |         | SLIMS password
+`slims.content_type`              | int       | x        |         | Content type PK for sample records
+`slims.criteria`                  | str       | x        |         | SLIMS criteria for finding records (see [Criteria](#Criteria))
+`slims.map_field`                 | list[str] |          |         | Mapping of keys to SLIMS field(s) (see [Fields](#Fields)/[Mappings](#Mappings))
+`slims.derived_from.criteria`     | str       |          |         | SLIMS criteria for finding parent samples (see [Criteria](#Criteria))
+`slims.derived_from.content_type` | int       |          |         | Content type PK for parent records
+`slims.bioinfo.content_type`      | int       |          |         | Content type PK for bioinformatics records
+`slims.bioinfo.state_field`       | str       |          |         | Field with state of bioinformatics objects (see [Fields](#Fields))
+`slims.bioinfo.create`            | bool      |          | false   | Create bioinformatics objects
+`slims.bioinfo.check`             | bool      |          | false   | Check state of existing bioinformatics records
+`slims.bioinfo.check_criteria`    | str       |          |         | Criteria for checking completed bioinformatics (see [Criteria](#Criteria))
+`slims.id`                        | list[str] |          |         | Manually select SLIMS Sample ID(s)
+`slims.allow_duplicates`          | bool      |          | false   | Allow duplicate samples (eg. if a pre-hook can handle this)
+`slims.dry_run`                   | bool      |          | false   | Do not create/update SLIMS bioinformatics objects
+`slims.novel_max_age`             | str       |          | 1 year  | Maximum age of novel samples (eg. "4 days", "2 months", "1 year")
+
+## Hooks
+
+Name                    | When | Condition | Description
+------------------------|------|-----------|-------------
+`slims_samples`         | Pre  |           | Fetch sample info from SLIMS 
+`slims_bioinformatics`  | Pre  |           | Add bioinformatics records for samples
+`slims_update`          | Post | Always    | Update bioinformatics state in SLIMS
+
+## Mixins
+
+`SlimsSamples`
+
+```
+from_records(records: list[Record], config: cfg.Config) -> data.Samples
+```
+Create a new data.Samples object from a list of SLIMS records.
+
+```
+add_bioinformatics(config: cfg.Config) -> None
+```
+Add bioinformatics content to SLIMS for all samples.
+
+```
+set_bioinformatics_state(state: str, config: cfg.Config) -> None
+```
+Update bioinformatics state for all samples in SLIMS.
+
+`SlimsSample`
+
+```
+from_record(record: Record, config: cfg.Config) -> data.Samples
+```
+Create a new data.Sample object from a single SLIMS record.
+
+```
+add_bioinformatics(self, config: cfg.Config) -> None
+```
+Add bioinformatics content to SLIMS for individual sample.
+
+```
+set_bioinformatics_state(self, state: str, config: cfg.Config) -> None
+```
+Update bioinformatics state for single sample in SLIMS.
+
 
 ## Criteria
 
@@ -40,7 +87,7 @@ The following operators are supported:
 - `one_of` / `not_one_of` (n values)
 - `contains` / `not_contains` (n values)
 - `starts_with` / `ends_with` / `not_starts_with` / `not_ends_with` (1 value)
-- `between_inclusive` / `not_between_inclusive` (2 values)
+- `between` / `not_between` (2 values)
 - `greater_than` / `less_than` (1 value)
 
 Complex boolean criteria can be constructed using `and`/`or` and parentheses.
