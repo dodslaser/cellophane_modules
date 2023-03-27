@@ -16,10 +16,10 @@ Option                      | Type      | Required | Default | Description
 `content_type`              | int       | x        |         | Content type PK for sample records
 `criteria`                  | str       | x        |         | SLIMS criteria for finding records (see [Criteria](#Criteria))
 `map_field`                 | list[str] |          |         | Mapping of keys to SLIMS field(s) (see [Fields](#Fields)/[Mappings](#Mappings))
-`derived_from.criteria`     | str       |          |         | SLIMS criteria for finding parent samples (see [criteria](#Criteria))
+`derived_from.criteria`     | str       |          |         | SLIMS criteria for finding parent samples (see [Criteria](#Criteria))
 `derived_from.content_type` | int       |          |         | Content type PK for parent records
 `bioinfo.content_type`      | int       |          |         | Content type PK for bioinformatics records
-`bioinfo.state_field`       | str       |          |         | Field with state of bioinformatics objects (see [field](#Fields))
+`bioinfo.state_field`       | str       |          |         | Field with state of bioinformatics objects (see [Fields](#Fields))
 `bioinfo.create`            | bool      |          | false   | Create bioinformatics objects
 `bioinfo.check`             | bool      |          | false   | Check state of existing bioinformatics records
 `bioinfo.check_criteria`    | str       |          |         | Criteria for checking completed bioinformatics (see [Criteria](#Criteria))
