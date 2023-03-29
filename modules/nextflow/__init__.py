@@ -1,7 +1,7 @@
 """Module for fetching files from HCP."""
 
 from pathlib import Path
-from typing import Optional, Mapping
+from typing import Mapping
 
 from cellophane import cfg, sge, modules, data
 
@@ -37,10 +37,10 @@ def nextflow(
     *args,
     config: cfg.Config,
     env: dict[str, str] = {},
-    log: Optional[Path] = None,
-    report: Optional[Path] = None,
-    workdir: Optional[Path] = None,
-    nf_config: Optional[Path] = None,
+    log: Path|None = None,
+    report: Path|None = None,
+    workdir: Path|None = None,
+    nf_config: Path|None = None,
     ansi_log: bool = False,
     resume: bool = False,
     **kwargs,
