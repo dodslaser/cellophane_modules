@@ -76,7 +76,7 @@ def _fetch_callback(
         samples[s_idx].files[f_idx] = str(local_path)
 
 
-@modules.pre_hook(label="HCP", priority=10)
+@modules.pre_hook(label="HCP", after=["slims_fetch"])
 def hcp_fetch(
     samples: data.Samples,
     config: cfg.Config,
