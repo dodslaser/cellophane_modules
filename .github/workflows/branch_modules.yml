@@ -2,7 +2,7 @@ name: Push modules to branches
 on:
   push:
     branches:
-      - main
+      - main, dev
 
 jobs:
   deploy:
@@ -20,9 +20,20 @@ jobs:
         branch: ${{ matrix.module }}
 
     - uses: s0/git-publish-subdir-action@develop
+      if: ${{ github.ref_name == 'main' }}
       env:
         REPO: self
         BRANCH: ${{ matrix.module }}
+        FOLDER: ${{ matrix.module }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SKIP_EMPTY_COMMITS: true
+        MESSAGE: "Update to {sha}: {msg}"
+    
+    - uses: s0/git-publish-subdir-action@develop
+      if: ${{ github.ref_name == 'dev' }}
+      env:
+        REPO: self
+        BRANCH: ${{ matrix.module }}_dev
         FOLDER: ${{ matrix.module }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SKIP_EMPTY_COMMITS: true
