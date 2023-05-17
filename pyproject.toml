@@ -10,6 +10,7 @@ python = "^3.10"
 NGPIris = "^4.2.0"
 slims-python-api = "^6.8.0"
 humanfriendly = "^10.0"
+cellophane={git = "https://github.com/ClinicalGenomicsGBG/cellophane.git", branch = "dev"}
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.0.0"
