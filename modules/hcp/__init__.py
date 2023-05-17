@@ -5,28 +5,36 @@ import sys
 from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
+from typing import Sequence
+
 
 from NGPIris import hcp
 
 from cellophane import cfg, data, modules
 
-class HCPSample:
+
+class HCPSample(data.Sample):
     """Sample with HCP backup."""
-    backup: list[str]
+    @property
+    def backup(self) -> list[str]:
+        if not hasattr(self, "_backup"):
+            self._backup: list[str] = []
+        return self._backup
 
-    def __init__(self, *args, backup: list[str] = [], **kwargs):
-        super().__init__(*args, backup=backup, **kwargs)
-
-class HCPSamples(data.Mixin, sample_mixin=HCPSample):
-    """Samples with HCP backup."""
-
-    pass
+    @backup.setter
+    def backup(self, value: str | Sequence[str]) -> None:
+        if isinstance(value, str):
+            self._backup = [value]
+        elif isinstance(value, Sequence) and all(isinstance(v, str) for v in value):
+            self._backup = [*value]
+        else:
+            raise ValueError(f"Invalid backup value: {value}")
 
 
 def _fetch(
     config: cfg.Config,
     local_path: Path,
-    remote_key: str|None = None,
+    remote_key: str | None = None,
 ) -> None:
     sys.stdout = open(
         config.logdir / f"iris.{local_path.name}.out", "w", encoding="utf-8"
@@ -99,7 +107,7 @@ def hcp_fetch(
                     sample.backup = [None] * len(sample.files)
 
                 for f_idx, local_key in enumerate(sample.files):
-                    remote_key: str|None = sample.backup[f_idx]
+                    remote_key: str | None = sample.backup[f_idx]
                     _local_key = local_key or remote_key or f"{sample.id}_{f_idx}"
                     local_path = config.iris.fastq_temp / Path(_local_key).name
 
