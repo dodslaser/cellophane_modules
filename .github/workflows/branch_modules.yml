@@ -4,6 +4,10 @@ on:
     branches:
       - main
       - dev
+  release:
+    types:
+      - published
+
 
 jobs:
   deploy:
@@ -31,10 +35,10 @@ jobs:
         MESSAGE: "Update to {sha}: {msg}"
     
     - uses: s0/git-publish-subdir-action@develop
-      if: ${{ github.ref_name == 'dev' }}
+      if: ${{ github.ref_name != 'main' }}
       env:
         REPO: self
-        BRANCH: ${{ matrix.module }}_dev
+        BRANCH: ${{ matrix.module }}_${{ github.ref_name }}
         FOLDER: ${{ matrix.module }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SKIP_EMPTY_COMMITS: true
