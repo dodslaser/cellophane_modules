@@ -6,7 +6,6 @@ import sys
 from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
-
 from cellophane import cfg, data, modules, sge
 
 
@@ -22,28 +21,26 @@ def _extract(
 
     match method:
         case "petagene":
-            args = (
-                "-d"
-                f"-t {config.unpack.sge_slots}"
-                f"{compressed_path}"
+            env = dict(
+                COMPRESSED_PATH=compressed_path,
+                THREADS=config.unpack.sge_slots,
             )
         case "spring":
-            args = (
-                "-d"
-                f"-t {config.unpack.sge_slots}"
-                f"-i {compressed_path}"
-                f"-o {extract_path}"
+            env = dict(
+                COMPRESSED_PATH=compressed_path,
+                EXTRACT_PATH=extract_path,
+                THREADS=config.unpack.sge_slots,
             )
         case _:
             raise ValueError(f"Unknown unpack method: {method}")
 
     sge.submit(
         str(Path(__file__).parent / "scripts" / f"{method}.sh"),
-        args,
+        env=env,
         queue=config.unpack.sge_queue,
         pe=config.unpack.sge_pe,
         slots=config.unpack.sge_slots,
-        name="petagene",
+        name=f"unpack_{compressed_path.name}",
         stderr=config.logdir / f"{compressed_path.name}.{method}.err",
         stdout=config.logdir / f"{compressed_path.name}.{method}.out",
         cwd=compressed_path.parent,
@@ -67,10 +64,11 @@ def _extract_callback(
     elif extract_path.exists():
         logger.debug(f"Extracted {extract_path}")
         samples[s_idx].files[f_idx] = extract_path
-    elif (
-        (fq1 := extract_path.with_suffix(".1")).exists() and
-        (fq2 := extract_path.with_suffix(".2")).exists()
+    elif ((fq1 := extract_path.with_suffix(".gz.1")).exists()) and (
+        (fq2 := extract_path.with_suffix(".gz.2")).exists()
     ):
+        fq1.rename(fq1.parent / f"{fq1.name.partition('.')[0]}_1.fastq.gz")
+        fq2.rename(fq2.parent / f"{fq2.name.partition('.')[0]}_2.fastq.gz")
         logger.debug(f"Extracted {fq1} and {fq2}")
         samples[s_idx].files = [fq1, fq2]
     else:
@@ -79,7 +77,7 @@ def _extract_callback(
 
 
 @modules.pre_hook(label="unpack", after=["hcp_fetch"])
-def petagene_extract(
+def unpack(
     samples: data.Samples,
     config: cfg.Config,
     logger: LoggerAdapter,
@@ -98,9 +96,21 @@ def petagene_extract(
                         continue
 
                     extract_path = compressed_path.with_suffix(".fastq.gz")
+
+                    alt_paths = [
+                        extract_path.parent
+                        / f"{extract_path.name.partition('.')[0]}_1.fastq.gz",
+                        extract_path.parent
+                        / f"{extract_path.name.partition('.')[0]}_2.fastq.gz",
+                    ]
+
                     if extract_path.exists():
                         logger.debug(f"Extracted file found for {sample.id}")
                         sample.files[f_idx] = extract_path
+                        continue
+                    elif all(p.exists() for p in alt_paths):
+                        logger.debug(f"Extracted files found for {sample.id}")
+                        sample.files = alt_paths
                         continue
                     else:
                         logger.info(f"Extracting {compressed_path}")
