@@ -547,21 +547,32 @@ def slims_update(
     **_,
 ) -> None:
     """Update SLIMS samples and derived records."""
-    unique_slims_samples = {
-        pk: [s for s in samples if s.record and s.record.pk() == pk]
-        for pk in set(s.record.pk() for s in samples if s.record)
-    }
     if config.slims.dry_run:
         logger.info("Dry run - Not updating SLIMS")
-    elif unique_slims_samples:
-        for _samples in unique_slims_samples.values():
-            if all(s.complete for s in _samples):
-                logger.info(f"Marking {_samples[0].id} as complete")
-                _samples[0].state = "complete"
-                _samples[0].update_derived(config)
-            else:
-                logger.warning(f"Marking {_samples[0].id} as failed")
-                _samples[0].state = "error"
-                _samples[0].update_derived(config)
-    else:
+        return
+
+    complete = samples.__class__.from_records(
+        records=[*set(s.record for s in samples.complete)],
+        config=config
+    )
+    failed = samples.__class__.from_records(
+        records=[*set(s.record for s in samples.failed)],
+        config=config
+    )
+
+    if not complete and not failed:
         logger.info("No samples to update")
+
+    if complete:
+        logger.info(f"Marking {len(complete)} samples as complete")
+        for sample in complete:
+            logger.debug(f"Marking {sample.id} as complete")
+        complete.set_state("complete")
+        complete.update_derived(config)
+
+    if failed:
+        logger.warning(f"Marking {len(failed)} samples as failed")
+        for sample in failed:
+            logger.debug(f"Marking {sample.id} as failed")
+        failed.set_state("error")
+        failed.update_derived(config)
