@@ -9,6 +9,7 @@ from attrs import define, field
 from cellophane import cfg, data, modules
 from NGPIris import hcp
 
+
 @define(slots=False, init=False)
 class HCPSample(data.Sample):
     """Sample with HCP backup."""
@@ -66,7 +67,7 @@ def hcp_fetch(
     _futures: list[Future] = []
     with ProcessPoolExecutor(max_workers=config.iris.parallel) as pool:
         for s_idx, sample in enumerate(samples):
-            if all(f.exists() for f in sample.files):
+            if all(Path(f).exists() for f in sample.files):
                 logger.info(f"All files for {sample.id} found locally")
                 continue
             else:
