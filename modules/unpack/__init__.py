@@ -164,6 +164,7 @@ def unpack(
                 for ext, extractor in extractors.items():
                     # FIXME: This will break for multi-extensions (e.g. .my.fancy.ext)
                     if compressed_path.suffix == ext:
+                        samples[s_idx].files[f_idx] = None
                         _proc = extractor.extract(
                             s_idx,
                             f_idx,
@@ -177,7 +178,7 @@ def unpack(
 
     while any(p.is_alive() for p in _procs) or not _output_queue.empty():
         s_idx, f_idx, extracted_path = _output_queue.get()
-        samples[s_idx].files.insert(f_idx, extracted_path)
+        samples[s_idx].files[f_idx] = extracted_path
         # This avoids locking when the queue empties before the processes finish
         # FIXME: Is there a better way to do this?
         sleep(1)
