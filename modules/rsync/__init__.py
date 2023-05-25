@@ -32,9 +32,10 @@ def _sync_error_callback(
 
 
 def _group_by_dest_dir(outputs: list[data.Output]):
+    _outputs = sorted(outputs, key=lambda o: o.dest_dir)
     return [
-        data.Output(src=[s for o in g for s in o.src], dest_dir=k)
-        for k, g in groupby(outputs, lambda o: o.dest_dir)
+        data.Output(src=[*set(s for o in g for s in o.src)], dest_dir=k)
+        for k, g in groupby(_outputs, lambda o: o.dest_dir)
     ]
 
 
