@@ -56,7 +56,13 @@ class Extractor:
         env: dict = {},
     ) -> mp.Process | None:
         if [*self.extracted_paths(compressed_path)]:
-            logger.info(f"Skipping {compressed_path.name}")
+            self.callback(
+                *args,
+                compressed_path=compressed_path,
+                extracted_paths_fn=self.extracted_paths,
+                output_queue=output_queue,
+                logger=logger,
+            )
             return None
         else:
             logger.info(f"Extracting {compressed_path.name} with {self.label}")
