@@ -6,7 +6,7 @@ from pathlib import Path
 from time import sleep
 from cellophane import cfg, data, modules, sge
 from functools import partial
-from typing import Iterator
+from typing import Iterator, Callable
 
 
 class Extractor:
@@ -19,18 +19,19 @@ class Extractor:
         cls.label = label
         cls.script = script
 
-    def extracted_paths(self, compressed_path: Path) -> Iterator[Path]:
+    @staticmethod
+    def extracted_paths(compressed_path: Path) -> Iterator[Path]:
         raise NotImplementedError
 
     @staticmethod
     def callback(
         *args,
         compressed_path: Path,
-        extracted_paths: list[Path],
+        extracted_paths_fn: Callable,
         output_queue: mp.Queue,
         logger: LoggerAdapter,
     ) -> None:
-        if extracted_paths:
+        if extracted_paths := [*extracted_paths_fn(compressed_path)]:
             for p in extracted_paths:
                 logger.debug(f"Extracted {p.name}")
                 output_queue.put((*args, p))
@@ -39,12 +40,11 @@ class Extractor:
 
     @staticmethod
     def error_callback(
-        *args,
+        code: int,
         compressed_path: Path,
-        output_queue: mp.Queue,
         logger: LoggerAdapter,
     ) -> None:
-        logger.error(f"Failed to extract {compressed_path.name}")
+        logger.error(f"Failed to extract {compressed_path.name} ({code}))")
 
     def extract(
         self,
@@ -79,13 +79,14 @@ class Extractor:
                     self.callback,
                     *args,
                     compressed_path=compressed_path,
+                    extracted_paths_fn=self.extracted_paths,
                     output_queue=output_queue,
+                    logger=logger,
                 ),
                 error_callback=partial(
                     self.error_callback,
-                    *args,
                     compressed_path=compressed_path,
-                    output_queue=output_queue,
+                    logger=logger,
                 ),
             )
 
@@ -95,7 +96,8 @@ class PetageneExtractor(
     label="petagene",
     script=Path(__file__).parent / "scripts" / "petagene.sh",
 ):
-    def extracted_paths(self, compressed_path: Path) -> Iterator[Path]:
+    @staticmethod
+    def extracted_paths(compressed_path: Path) -> Iterator[Path]:
         _base = compressed_path.name.partition(".")[0]
         _parent = compressed_path.parent
         if (extracted := _parent / f"{_base}.fastq.gz").exists():
@@ -107,7 +109,8 @@ class SpringExtractor(
     label="spring",
     script=Path(__file__).parent / "scripts" / "spring.sh",
 ):
-    def extracted_paths(self, compressed_path: Path) -> Iterator[Path]:
+    @staticmethod
+    def extracted_paths(compressed_path: Path) -> Iterator[Path]:
         _base = compressed_path.name.partition(".")[0]
         _parent = compressed_path.parent
         if (extracted := _parent / f"{_base}.fastq.gz").exists():
