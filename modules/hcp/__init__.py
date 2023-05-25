@@ -1,7 +1,7 @@
 """Module for fetching files from HCP."""
 
 import sys
-from concurrent.futures import ThreadPoolExecutor, Future, as_completed
+from concurrent.futures import ProcessPoolExecutor, Future, as_completed
 from logging import LoggerAdapter
 from pathlib import Path
 from typing import Sequence
@@ -26,21 +26,22 @@ class HCPSample(data.Sample):
 
 
 def _fetch(
-    config: cfg.Config,
+    logdir: Path,
+    credentials: Path,
     local_path: Path,
     remote_key: str,
     s_idx: int,
     f_idx: int,
 ) -> tuple[int, int, Path]:
     sys.stdout = open(
-        config.logdir / f"iris.{local_path.name}.out", "w", encoding="utf-8"
+        logdir / f"iris.{local_path.name}.out", "w", encoding="utf-8"
     )
     sys.stderr = open(
-        config.logdir / f"iris.{local_path.name}.err", "w", encoding="utf-8"
+        logdir / f"iris.{local_path.name}.err", "w", encoding="utf-8"
     )
 
     hcpm = hcp.HCPManager(
-        credentials_path=config.iris.credentials,
+        credentials_path=credentials,
         bucket="data",  # FIXME: make this configurable
     )
 
@@ -62,8 +63,9 @@ def hcp_fetch(
     **_,
 ) -> data.Samples:
     """Fetch files from HCP."""
+
     _futures: list[Future] = []
-    with ThreadPoolExecutor(max_workers=config.iris.parallel) as pool:
+    with ProcessPoolExecutor(max_workers=config.iris.parallel) as pool:
         for s_idx, sample in enumerate(samples):
             if sample.files and all(Path(file).exists() for file in sample.files):
                 logger.debug(f"Files found for {sample.id} {sample.files}")
@@ -74,7 +76,8 @@ def hcp_fetch(
                     local_path = config.iris.fastq_temp / Path(remote_key).name
                     _future = pool.submit(
                         _fetch,
-                        config=config,
+                        logdir=config.logdir,
+                        credentials=config.iris.credentials,
                         local_path=local_path,
                         remote_key=remote_key,
                         s_idx=s_idx,
@@ -93,6 +96,6 @@ def hcp_fetch(
         else:
             if s_idx not in _failed:
                 logger.info(f"Fetched {local_path.name} from HCP")
-                samples[s_idx].files[f_idx].append(local_path)
+                samples[s_idx].files.insert(f_idx, local_path)
 
     return samples
