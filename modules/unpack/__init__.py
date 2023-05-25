@@ -1,79 +1,141 @@
 """Module for fetching files from HCP."""
 
-from concurrent.futures import ProcessPoolExecutor, Future
-import os
-import sys
-from functools import partial
+import multiprocessing as mp
 from logging import LoggerAdapter
 from pathlib import Path
+from time import sleep
 from cellophane import cfg, data, modules, sge
+from functools import partial
+from typing import Iterator
 
 
-def _extract(
-    method: str,
-    /,
-    compressed_path: Path,
-    extract_path: Path,
-    config: cfg.Config,
-) -> None:
-    sys.stdout = open(os.devnull, "w", encoding="utf-8")
-    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+class Extractor:
+    """Base class for extractors."""
 
-    match method:
-        case "petagene":
-            env = dict(
-                COMPRESSED_PATH=compressed_path,
-                THREADS=config.unpack.sge_slots,
+    label: str
+    script: Path
+
+    def __init_subclass__(cls, label: str, script: Path) -> None:
+        cls.label = label
+        cls.script = script
+
+    def extracted_paths(self, compressed_path: Path) -> Iterator[Path]:
+        raise NotImplementedError
+
+    @staticmethod
+    def callback(
+        *args,
+        compressed_path: Path,
+        extracted_paths: list[Path],
+        output_queue: mp.Queue,
+        logger: LoggerAdapter,
+    ) -> None:
+        if extracted_paths:
+            for p in extracted_paths:
+                logger.debug(f"Extracted {p.name}")
+                output_queue.put((*args, p))
+        else:
+            logger.error(f"Failed to extract {compressed_path.name}")
+
+    @staticmethod
+    def error_callback(
+        *args,
+        compressed_path: Path,
+        output_queue: mp.Queue,
+        logger: LoggerAdapter,
+    ) -> None:
+        logger.error(f"Failed to extract {compressed_path.name}")
+
+    def extract(
+        self,
+        *args,
+        logger: LoggerAdapter,
+        compressed_path: Path,
+        output_queue: mp.Queue,
+        config: cfg.Config,
+        env: dict = {},
+    ) -> mp.Process | None:
+        if [*self.extracted_paths(compressed_path)]:
+            logger.info(f"Skipping {compressed_path.name}")
+            return None
+        else:
+            logger.info(f"Extracting {compressed_path.name} with {self.label}")
+            return sge.submit(
+                self.script,
+                env={
+                    **env,
+                    "COMPRESSED_PATH": compressed_path,
+                    "THREADS": config.unpack.sge_slots,
+                },
+                queue=config.unpack.sge_queue,
+                pe=config.unpack.sge_pe,
+                slots=config.unpack.sge_slots,
+                name=f"unpack_{compressed_path.name}",
+                stderr=config.logdir / f"{compressed_path.name}.{self.label}.err",
+                stdout=config.logdir / f"{compressed_path.name}.{self.label}.out",
+                cwd=compressed_path.parent,
+                check=False,
+                callback=partial(
+                    self.callback,
+                    *args,
+                    compressed_path=compressed_path,
+                    output_queue=output_queue,
+                ),
+                error_callback=partial(
+                    self.error_callback,
+                    *args,
+                    compressed_path=compressed_path,
+                    output_queue=output_queue,
+                ),
             )
-        case "spring":
-            env = dict(
-                COMPRESSED_PATH=compressed_path,
-                EXTRACT_PATH=extract_path,
-                THREADS=config.unpack.sge_slots,
-            )
-        case _:
-            raise ValueError(f"Unknown unpack method: {method}")
-
-    sge.submit(
-        str(Path(__file__).parent / "scripts" / f"{method}.sh"),
-        env=env,
-        queue=config.unpack.sge_queue,
-        pe=config.unpack.sge_pe,
-        slots=config.unpack.sge_slots,
-        name=f"unpack_{compressed_path.name}",
-        stderr=config.logdir / f"{compressed_path.name}.{method}.err",
-        stdout=config.logdir / f"{compressed_path.name}.{method}.out",
-        cwd=compressed_path.parent,
-        check=True,
-    )
 
 
-def _extract_callback(
-    future: Future,
-    /,
-    logger: LoggerAdapter,
-    samples: data.Samples,
-    compressed_path: Path,
-    extract_path: Path,
-    s_idx: int,
-    f_idx: int,
+class PetageneExtractor(
+    Extractor,
+    label="petagene",
+    script=Path(__file__).parent / "scripts" / "petagene.sh",
 ):
-    if (exception := future.exception()) is not None:
-        logger.error(f"Failed to extract {compressed_path} ({exception})")
-        samples[s_idx].files[f_idx] = None
-    elif extract_path.exists():
-        logger.debug(f"Extracted {extract_path}")
-        samples[s_idx].files[f_idx] = extract_path
-    elif ((fq1 := extract_path.with_suffix(".gz.1")).exists()) and (
-        (fq2 := extract_path.with_suffix(".gz.2")).exists()
-    ):
-        fq1.rename(fq1.parent / f"{fq1.name.partition('.')[0]}_1.fastq.gz")
-        fq2.rename(fq2.parent / f"{fq2.name.partition('.')[0]}_2.fastq.gz")
-        logger.debug(f"Extracted {fq1} and {fq2}")
-        samples[s_idx].files = [fq1, fq2]
-    else:
-        logger.error(f"Extraction completed, but {extract_path} does not exist")
-        samples[s_idx].files[f_idx] = None
+    def extracted_paths(self, compressed_path: Path) -> Iterator[Path]:
+        _base = compressed_path.name.partition(".")[0]
+        _parent = compressed_path.parent
+        if (extracted := _parent / f"{_base}.fastq.gz").exists():
+            yield extracted
+
+
+class SpringExtractor(
+    Extractor,
+    label="spring",
+    script=Path(__file__).parent / "scripts" / "spring.sh",
+):
+    def extracted_paths(self, compressed_path: Path) -> Iterator[Path]:
+        _base = compressed_path.name.partition(".")[0]
+        _parent = compressed_path.parent
+        if (extracted := _parent / f"{_base}.fastq.gz").exists():
+            yield extracted
+
+        elif all(
+            (
+                (extracted1 := _parent / f"{_base}.1.fastq.gz").exists(),
+                (extracted2 := _parent / f"{_base}.2.fastq.gz").exists(),
+            )
+        ):
+            yield extracted1
+            yield extracted2
+
+        elif all(
+            (
+                (extracted1 := _parent / f"{_base}.fastq.gz.1").exists(),
+                (extracted2 := _parent / f"{_base}.fastq.gz.2").exists(),
+            )
+        ):
+            yield extracted1.rename(_parent / f"{_base}.1.fastq.gz")
+            yield extracted2.rename(_parent / f"{_base}.2.fastq.gz")
+
+
+extractors = {
+    (".fasterq"): PetageneExtractor(),
+    (".spring"): SpringExtractor(),
+}
 
 
 @modules.pre_hook(label="unpack", after=["hcp_fetch"])
@@ -84,52 +146,31 @@ def unpack(
     **_,
 ) -> data.Samples:
     """Extract petagene fasterq files."""
-    with ProcessPoolExecutor(config.unpack.parallel) as pool:
-        for s_idx, sample in enumerate(samples):
-            for f_idx, fastq in enumerate(sample.files):
-                if fastq and (compressed_path := Path(fastq)).exists():
-                    if compressed_path.suffix == ".fasterq":
-                        method = "petagene"
-                    elif compressed_path.suffix == ".spring":
-                        method = "spring"
-                    else:
-                        continue
+    _procs: list[mp.Process] = []
+    _output_queue: mp.Queue = mp.Queue()
 
-                    extract_path = compressed_path.with_suffix(".fastq.gz")
-
-                    alt_paths = [
-                        extract_path.parent
-                        / f"{extract_path.name.partition('.')[0]}_1.fastq.gz",
-                        extract_path.parent
-                        / f"{extract_path.name.partition('.')[0]}_2.fastq.gz",
-                    ]
-
-                    if extract_path.exists():
-                        logger.debug(f"Extracted file found for {sample.id}")
-                        sample.files[f_idx] = extract_path
-                        continue
-                    elif all(p.exists() for p in alt_paths):
-                        logger.debug(f"Extracted files found for {sample.id}")
-                        sample.files = alt_paths
-                        continue
-                    else:
-                        logger.info(f"Extracting {compressed_path}")
-                        pool.submit(
-                            _extract,
-                            method,
+    for s_idx, sample in enumerate(samples):
+        for f_idx, fastq in enumerate(sample.files):
+            if fastq and (compressed_path := Path(fastq)).exists():
+                for ext, extractor in extractors.items():
+                    # FIXME: This will break for multi-extensions (e.g. .my.fancy.ext)
+                    if compressed_path.suffix == ext:
+                        _proc = extractor.extract(
+                            s_idx,
+                            f_idx,
+                            logger=logger,
                             compressed_path=compressed_path,
-                            extract_path=extract_path,
+                            output_queue=_output_queue,
                             config=config,
-                        ).add_done_callback(
-                            partial(
-                                _extract_callback,
-                                logger=logger,
-                                samples=samples,
-                                compressed_path=compressed_path,
-                                extract_path=extract_path,
-                                s_idx=s_idx,
-                                f_idx=f_idx,
-                            )
                         )
+                        if _proc:
+                            _procs.append(_proc)
 
-    return samples.__class__([s for s in samples if s is not None])
+    while any(p.is_alive() for p in _procs) or not _output_queue.empty():
+        s_idx, f_idx, extracted_path = _output_queue.get()
+        samples[s_idx].files.insert(f_idx, extracted_path)
+        # This avoids locking when the queue empties before the processes finish
+        # FIXME: Is there a better way to do this?
+        sleep(1)
+
+    return samples
