@@ -181,6 +181,6 @@ def unpack(
         samples[s_idx].files[f_idx] = extracted_path
         # This avoids locking when the queue empties before the processes finish
         # FIXME: Is there a better way to do this?
-        sleep(1)
+        sleep(0.1)
 
     return samples
