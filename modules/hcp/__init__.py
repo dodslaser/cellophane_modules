@@ -87,11 +87,12 @@ def hcp_fetch(
         try:
             s_idx, f_idx, local_path = f.result()
         except Exception as e:
-            logger.error(f"Failed to fetch {local_path} from HCP ({e})")
+            logger.error(f"Failed to fetch {local_path.name} from HCP ({e})")
             samples[s_idx].files = []
             _failed.append(s_idx)
         else:
             if s_idx not in _failed:
+                logger.info(f"Fetched {local_path.name} from HCP")
                 samples[s_idx].files[f_idx].append(local_path)
 
     return samples
