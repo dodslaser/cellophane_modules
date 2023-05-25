@@ -476,12 +476,8 @@ def slims_fetch(
                 else:
                     if sample.files is None:
                         sample.pop("files")
-                    _data = {**match[0]} | {**sample}
-
-                    samples[idx] = sample.__class__(
-                        id=_data.pop("id"),
-                        **deepcopy(_data),
-                    )
+                    _data = {key: sample[key] or match[0][key] for key in sample.keys()}
+                    samples[idx] = sample.__class__(**deepcopy(_data))
 
             return samples
 
