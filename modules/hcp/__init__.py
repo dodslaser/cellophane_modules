@@ -67,13 +67,18 @@ def hcp_fetch(
     _futures: list[Future] = []
     with ProcessPoolExecutor(max_workers=config.iris.parallel) as pool:
         for s_idx, sample in enumerate(samples):
-            if sample.files and all(Path(file).exists() for file in sample.files):
-                logger.debug(f"Files found for {sample.id} {sample.files}")
-            elif sample.backup is not None:
-                logger.info(f"Fetching files for {sample.id} from HCP")
-                samples[s_idx].files = []
-                for f_idx, remote_key in enumerate(sample.backup):
-                    local_path = config.iris.fastq_temp / Path(remote_key).name
+            for f_idx, remote_key in enumerate(sample.backup):
+                if sample.files[f_idx].exists():
+                    logger.info(f"Found {sample.files[f_idx].name} locally")
+                    continue
+
+                local_path = config.iris.fastq_temp / Path(remote_key).name
+                if local_path.exists():
+                    logger.info(f"Found {local_path.name} locally")
+                    continue
+
+                else:
+                    logger.info(f"Fetching {remote_key} from HCP")
                     _future = pool.submit(
                         _fetch,
                         logdir=config.logdir,
