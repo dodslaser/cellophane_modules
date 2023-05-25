@@ -9,7 +9,6 @@ from attrs import define, field
 from cellophane import cfg, data, modules
 from NGPIris import hcp
 
-
 @define(slots=False, init=False)
 class HCPSample(data.Sample):
     """Sample with HCP backup."""
@@ -67,27 +66,29 @@ def hcp_fetch(
     _futures: list[Future] = []
     with ProcessPoolExecutor(max_workers=config.iris.parallel) as pool:
         for s_idx, sample in enumerate(samples):
-            for f_idx, remote_key in enumerate(sample.backup):
-                if sample.files[f_idx].exists():
-                    logger.info(f"Found {sample.files[f_idx].name} locally")
-                    continue
+            if all(f.exists() for f in sample.files):
+                logger.info(f"All files for {sample.id} found locally")
+                continue
+            else:
+                sample.files = []
+                for f_idx, remote_key in enumerate(sample.backup):
+                    local_path = config.iris.fastq_temp / Path(remote_key).name
+                    if local_path.exists():
+                        logger.info(f"Found {local_path.name} locally")
+                        samples[s_idx].files.insert(f_idx, local_path)
+                        continue
 
-                local_path = config.iris.fastq_temp / Path(remote_key).name
-                if local_path.exists():
-                    logger.info(f"Found {local_path.name} locally")
-                    continue
-
-                else:
-                    logger.info(f"Fetching {remote_key} from HCP")
-                    _future = pool.submit(
-                        _fetch,
-                        logdir=config.logdir,
-                        credentials=config.iris.credentials,
-                        local_path=local_path,
-                        remote_key=remote_key,
-                        s_idx=s_idx,
-                        f_idx=f_idx,
-                    )
+                    else:
+                        logger.info(f"Fetching {remote_key} from HCP")
+                        _future = pool.submit(
+                            _fetch,
+                            logdir=config.logdir,
+                            credentials=config.iris.credentials,
+                            local_path=local_path,
+                            remote_key=remote_key,
+                            s_idx=s_idx,
+                            f_idx=f_idx,
+                        )
                     _futures.append(_future)
 
     _failed: list[int] = []
