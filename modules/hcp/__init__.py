@@ -32,27 +32,27 @@ def _fetch(
     remote_key: str,
     s_idx: int,
     f_idx: int,
-) -> tuple[int, int, Path]:
-    sys.stdout = open(
-        logdir / f"iris.{local_path.name}.out", "w", encoding="utf-8"
-    )
-    sys.stderr = open(
-        logdir / f"iris.{local_path.name}.err", "w", encoding="utf-8"
-    )
+) -> tuple[int, int, str, Path]:
+    sys.stdout = open(logdir / f"iris.{local_path.name}.out", "w", encoding="utf-8")
+    sys.stderr = open(logdir / f"iris.{local_path.name}.err", "w", encoding="utf-8")
 
-    hcpm = hcp.HCPManager(
-        credentials_path=credentials,
-        bucket="data",  # FIXME: make this configurable
-    )
+    if local_path.exists():
+        return s_idx, f_idx, "cache", local_path
 
-    hcpm.download_file(
-        remote_key,
-        local_path=str(local_path),
-        callback=False,
-        force=True,
-    )
+    else:
+        hcpm = hcp.HCPManager(
+            credentials_path=credentials,
+            bucket="data",  # FIXME: make this configurable
+        )
 
-    return s_idx, f_idx, local_path
+        hcpm.download_file(
+            remote_key,
+            local_path=str(local_path),
+            callback=False,
+            force=True,
+        )
+
+        return s_idx, f_idx, "hcp", local_path
 
 
 @modules.pre_hook(label="HCP", after=["slims_fetch"])
@@ -73,36 +73,29 @@ def hcp_fetch(
             else:
                 sample.files = []
                 for f_idx, remote_key in enumerate(sample.backup):
-                    local_path = config.iris.fastq_temp / Path(remote_key).name
-                    if local_path.exists():
-                        logger.info(f"Found {local_path.name} locally")
-                        samples[s_idx].files.insert(f_idx, local_path)
-                        continue
-
-                    else:
-                        logger.info(f"Fetching {remote_key} from HCP")
-                        _future = pool.submit(
-                            _fetch,
-                            logdir=config.logdir,
-                            credentials=config.iris.credentials,
-                            local_path=local_path,
-                            remote_key=remote_key,
-                            s_idx=s_idx,
-                            f_idx=f_idx,
-                        )
-                    _futures.append(_future)
+                    logger.info(f"Fetching {remote_key}")
+                    _future = pool.submit(
+                        _fetch,
+                        logdir=config.logdir,
+                        credentials=config.iris.credentials,
+                        local_path=config.iris.fastq_temp / Path(remote_key).name,
+                        remote_key=remote_key,
+                        s_idx=s_idx,
+                        f_idx=f_idx,
+                    )
+                _futures.append(_future)
 
     _failed: list[int] = []
     for f in as_completed(_futures):
         try:
-            s_idx, f_idx, local_path = f.result()
+            s_idx, f_idx, location, local_path = f.result()
         except Exception as e:
-            logger.error(f"Failed to fetch {local_path.name} from HCP ({e})")
+            logger.error(f"Failed to fetch {local_path.name} ({e})")
             samples[s_idx].files = []
             _failed.append(s_idx)
         else:
             if s_idx not in _failed:
-                logger.info(f"Fetched {local_path.name} from HCP")
+                logger.info(f"Fetched {local_path.name} ({location})")
                 samples[s_idx].files.insert(f_idx, local_path)
 
     return samples
