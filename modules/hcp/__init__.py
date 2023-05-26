@@ -26,16 +26,14 @@ class HCPSample(data.Sample):
 
 
 def _fetch(
-    logdir: Path,
     credentials: Path,
     local_path: Path,
     remote_key: str,
     s_idx: int,
     f_idx: int,
 ) -> tuple[int, int, str, Path]:
-    sys.stdout = open(logdir / f"iris.{local_path.name}.out", "w", encoding="utf-8")
-    sys.stderr = open(logdir / f"iris.{local_path.name}.err", "w", encoding="utf-8")
-
+    sys.stdout = open("/dev/null", "w", encoding="utf-8")
+    sys.stderr = open("/dev/null", "w", encoding="utf-8")
     if local_path.exists():
         return s_idx, f_idx, "cache", local_path
 
@@ -76,7 +74,6 @@ def hcp_fetch(
                     logger.info(f"Fetching {remote_key}")
                     _future = pool.submit(
                         _fetch,
-                        logdir=config.logdir,
                         credentials=config.iris.credentials,
                         local_path=config.iris.fastq_temp / Path(remote_key).name,
                         remote_key=remote_key,

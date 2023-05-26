@@ -45,7 +45,6 @@ def rsync_results(
     logger: LoggerAdapter,
     config: cfg.Config,
     outdir: Path,
-    timestamp: str,
     **_,
 ) -> None:
     if config.rsync.skip:
@@ -57,9 +56,7 @@ def rsync_results(
     else:
         logger.info(f"Syncing output to {config.rsync.base}")
 
-    _outprefix = config.get("outprefix", timestamp)
     _outputs = [o for s in samples for o in s.output or []]
-
     # Split outputs into large files, small files, and directories
     _large_files: list[data.Output] = []
     _small_files: list[data.Output] = []
@@ -122,8 +119,6 @@ def rsync_results(
                 config=config,
                 name="rsync",
                 check=False,
-                stderr=config.logdir / f"rsync.{_outprefix}.{tag}.err",
-                stdout=config.logdir / f"rsync.{_outprefix}.{tag}.out",
                 env={"MANIFEST": str(manifest_path)},
                 callback=partial(
                     _sync_callback,

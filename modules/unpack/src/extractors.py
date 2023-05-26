@@ -73,8 +73,6 @@ class Extractor:
                 config=config,
                 slots=config.unpack.threads,
                 name=f"unpack_{compressed_path.name}",
-                stderr=config.logdir / f"{compressed_path.name}.{self.label}.err",
-                stdout=config.logdir / f"{compressed_path.name}.{self.label}.out",
                 cwd=compressed_path.parent,
                 check=False,
                 callback=partial(
