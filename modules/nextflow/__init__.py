@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Mapping
+from uuid import uuid4
 
 from cellophane import cfg, sge, data
 
@@ -38,20 +39,24 @@ def nextflow(
     *args,
     config: cfg.Config,
     env: dict[str, str] = {},
-    log: Path | None = None,
-    report: Path | None = None,
     workdir: Path | None = None,
     nf_config: Path | None = None,
     ansi_log: bool = False,
     resume: bool = False,
+    name: str = "nextflow",
     **kwargs,
 ):
+    """Submit a Nextflow job to SGE."""
+    (config.logdir / "nextflow").mkdir(exist_ok=True)
+
     if "workdir" in config.nextflow:
         config.nextflow.workdir.mkdir(parents=True, exist_ok=True)
 
+    uuid = uuid4()
+
     sge.submit(
         str(Path(__file__).parent / "scripts" / "nextflow.sh"),
-        f"-log {log}" if log else "",
+        f"-log {config.logdir / 'nextflow' / f'{name}.{uuid.hex}.log'}",
         (
             f"-config {nf_config}"
             if nf_config
@@ -63,7 +68,7 @@ def nextflow(
         "-ansi-log false" if not ansi_log or config.nextflow.ansi_log else "",
         f"-work-dir {workdir}" if workdir else "",
         "-resume" if resume else "",
-        f"-with-report {report}" if report else "",
+        f"-with-report {config.logdir / 'nextflow' / f'{name}.{uuid.hex}.report.html'}",
         f"-profile {config.nextflow.profile}",
         *args,
         env={
@@ -73,6 +78,8 @@ def nextflow(
             **env,
         },
         config=config,
+        uuid=uuid,
+        name=name,
         slots=config.nextflow.threads,
         **kwargs,
     )
