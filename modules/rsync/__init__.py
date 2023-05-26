@@ -119,9 +119,7 @@ def rsync_results(
 
             _proc = sge.submit(
                 str(Path(__file__).parent / "scripts" / "rsync.sh"),
-                queue=config.rsync.sge_queue,
-                pe=config.rsync.sge_pe,
-                slots=config.rsync.sge_slots,
+                config=config,
                 name="rsync",
                 check=False,
                 stderr=config.logdir / f"rsync.{_outprefix}.{tag}.err",

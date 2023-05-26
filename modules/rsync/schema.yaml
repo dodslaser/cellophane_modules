@@ -7,16 +7,6 @@ properties:
         type: boolean
         default: false
         description: "Don't rsync results"
-      sge_queue:
-        type: string
-        description: SGE queue for rsync
-      sge_pe:
-        type: string
-        description: SGE parallel environment for rsync
-      sge_slots:
-        type: integer
-        description: SGE slots (threads) for rsync
-        default: 1
       base:
         type: path
         description: Base of directory where results will be stored

@@ -3,16 +3,7 @@ properties:
   unpack:
     type: object
     properties:
-      sge_queue:
-        type: string
-        description: SGE queue for decompression
-      sge_pe:
-        type: string
-        description: SGE parallel environment for decompression
-      sge_slots:
+      threads:
         type: integer
-        description: SGE slots (threads) for decompression
+        description: Threads for decompression
         default: 40
-    required:
-      - sge_queue
-      - sge_pe

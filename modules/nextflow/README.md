@@ -6,9 +6,7 @@ Module providing convenient access to functionality for launching NextFlow pipel
 
 Option                      | Type | Required | Default  | Description
 ----------------------------|------|----------|----------|-------------
-`nextflow.sge_queue`        | str  | x        |          | SGE queue for the NextFlow main process
-`nextflow.sge_pe`           | str  | x        |          | SGE parallel environment for the NextFlow main process
-`nextflow.sge_slots`        | int  | x        |          | SGE slots the NextFlow main process
+`nextflow.threads`          | int  |          | 2        | SGE slots the NextFlow main process
 `nextflow.config`           | str  |          |          | Nextflow config file
 `nextflow.profile`          | str  | x        |          | Config profile(s) to use
 `nextflow.cluster_options`  | str  | x        |          | Cluster options to pass to NextFlow (native spec.)

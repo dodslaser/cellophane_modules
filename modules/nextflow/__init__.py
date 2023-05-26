@@ -72,8 +72,7 @@ def nextflow(
             **{k: v for m in config.nextflow.env for k, v in m.items()},
             **env,
         },
-        queue=config.nextflow.sge_queue,
-        pe=config.nextflow.sge_pe,
-        slots=config.nextflow.sge_slots,
+        config=config,
+        slots=config.nextflow.threads,
         **kwargs,
     )

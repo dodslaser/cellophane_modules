@@ -10,9 +10,6 @@ Option                       | Type | Required | Default | Description
 `rsync.base`                 | path | x        |         | Base of directory where results will be stored
 `rsync.overwrite`            | bool |          | false   | Overwrite existing results
 `rsync.large_file_threshold` | str  |          | "100M"  | Files larger than this will be copied in a separate job (eg. 100M, 1 GB)
-`rsync.sge_queue`            | str  | x        |         | SGE queue for copying
-`rsync.sge_pe`               | str  | x        |         | SGE parallel environment for copying
-`rsync.sge_slots`            | int  |          | 1       | SGE slots for copying
 
 ## Hooks
 
