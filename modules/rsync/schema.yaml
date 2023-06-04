@@ -2,9 +2,11 @@ type: object
 properties:
   rsync:
     type: object
+    required:
+      - base
     properties:
       skip:
-        type: boolean
+        type: skip
         default: false
         description: "Don't rsync results"
       base:
@@ -18,6 +20,3 @@ properties:
         type: string
         description: Files larger than this will be copied in a separate job (eg. 100M, 1 GB)
         default: "100M"
-    required:
-      - sge_queue
-      - sge_pe

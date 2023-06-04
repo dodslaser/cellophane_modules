@@ -2,15 +2,13 @@ type: object
 properties:
   mail:
     type: object
-    if: {properties: {skip: {const: false}}}
-    then:
-      required:
-        - start
-        - end
-        - smtp
+    required:
+      - start
+      - end
+      - smtp
     properties:
       skip:
-        type: boolean
+        type: skip
         default: false
         description: "Don't send mail"
       start:
