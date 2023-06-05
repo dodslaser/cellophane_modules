@@ -6,15 +6,13 @@ properties:
       threads:
         type: integer
         description: Threads for nextflow manager
+        default: 2
       config:
         type: path
         description: Nextflow config file
       profile:
         type: string
         description: Nextflow profile
-      cluster_options:
-        type: string
-        description: Nextflow cluster options
       ansi_log:
         type: boolean
         default: false
@@ -31,8 +29,3 @@ properties:
         type: mapping
         description: Environment variables that will be passed to the nextflow process
         default: [""]
-    required:
-      - sge_queue
-      - sge_pe
-      - sge_slots
-      - profile

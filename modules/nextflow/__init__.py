@@ -60,8 +60,8 @@ def nextflow(
         (
             f"-config {nf_config}"
             if nf_config
-            else f"-config {config.nextflow.config}"
-            if "config" in config.nextflow
+            else f"-config {c}"
+            if (c := config.nextflow.get("config", None))
             else ""
         ),
         f"run {main}",
@@ -69,7 +69,11 @@ def nextflow(
         f"-work-dir {workdir}" if workdir else "",
         "-resume" if resume else "",
         f"-with-report {config.logdir / 'nextflow' / f'{name}.{uuid.hex}.report.html'}",
-        f"-profile {config.nextflow.profile}",
+        (
+            f"-profile {p}"
+            if (p := config.nextflow.get("profile", None))
+            else ""
+        ),
         *args,
         env={
             "_NXF_MODULE": config.nextflow.nf_module,

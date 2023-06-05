@@ -2,16 +2,11 @@ type: object
 properties:
   slims:
     type: object
-    allOf:
-      - required:
-        - username
-        - password
-        - url
-        - find_criteria
-      - if: {properties: {check: {const: true}}}
-        then:
-          required:
-            - check_criteria
+    required:
+      - username
+      - password
+      - url
+      - find_criteria
 
     properties:
       url:
@@ -42,11 +37,7 @@ properties:
       check_criteria:
         description: SLIMS criteria for checking completed records (eg. "cntn_cstm_SecondaryAnalysis equals 1337")
         type: string
-
-      check:
-        description: Check state of samples
-        type: boolean
-        default: true
+        default: ""
 
       id:
         description: Manually select SLIMS Sample ID(s)
