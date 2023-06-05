@@ -72,7 +72,7 @@ def start_mail(
     config: cfg.Config,
     **_,
 ):
-    if not config.mail.skip:
+    if "mail" in config:
         logger.debug(f"Sending start mail to {config.mail.start.to_addr}")
         subject, body = _render_mail(
             **config.mail,
@@ -99,7 +99,7 @@ def end_mail(
     config: cfg.Config,
     **_,
 ):
-    if not config.mail.skip:
+    if "mail" in config:
         logger.debug(f"Sending end mail to {config.mail.end.to_addr}")
         subject, body = _render_mail(
             **config.mail,

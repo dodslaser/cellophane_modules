@@ -1,6 +1,6 @@
 type: object
 properties:
-  iris:
+  hcp:
     type: object
     properties:
       credentials:

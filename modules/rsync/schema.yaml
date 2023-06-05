@@ -5,10 +5,6 @@ properties:
     required:
       - base
     properties:
-      skip:
-        type: skip
-        default: false
-        description: "Don't rsync results"
       base:
         type: path
         description: Base of directory where results will be stored

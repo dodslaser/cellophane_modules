@@ -6,9 +6,9 @@ Fetch sample files from HCP backup (using NGPIris). If the backup attribute is s
 
 Option             | Type      | Required | Default | Description
 -------------------|-----------|----------|---------|-------------
-`iris.credentials` | str       | x        |         | Path to iris credentials file
-`iris.fastq_temp`  | str       | x        |         | Path where fastqs will be stored
-`iris.parallel`    | int       |          | 4       | Number of parallel downloads from HCP
+`hcp.credentials`  | str       | x        |         | Path to iris credentials file
+`hcp.fastq_temp`   | str       | x        |         | Path where fastqs will be stored
+`hcp.parallel`     | int       |          | 4       | Number of parallel downloads from HCP
 
 ## Hooks
 

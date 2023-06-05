@@ -62,6 +62,10 @@ def hcp_fetch(
 ) -> data.Samples:
     """Fetch files from HCP."""
 
+    if "hcp" not in config:
+        logger.info("HCP not configured")
+        return samples
+
     _futures: list[Future] = []
     with ProcessPoolExecutor(max_workers=config.iris.parallel) as pool:
         for s_idx, sample in enumerate(samples):

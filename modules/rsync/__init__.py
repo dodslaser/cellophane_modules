@@ -47,8 +47,8 @@ def rsync_results(
     outdir: Path,
     **_,
 ) -> None:
-    if config.rsync.skip:
-        logger.info("Skipping output sync")
+    if "rsync" not in config:
+        logger.info("Rsync not configured")
         return
     elif not any(s.output for s in samples):
         logger.warning("No output to sync")
