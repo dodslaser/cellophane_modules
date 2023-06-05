@@ -8,8 +8,7 @@ Option                      | Type | Required | Default  | Description
 ----------------------------|------|----------|----------|-------------
 `nextflow.threads`          | int  |          | 2        | SGE slots the NextFlow main process
 `nextflow.config`           | str  |          |          | Nextflow config file
-`nextflow.profile`          | str  | x        |          | Config profile(s) to use
-`nextflow.cluster_options`  | str  | x        |          | Cluster options to pass to NextFlow (native spec.)
+`nextflow.profile`          | str  |          |          | Config profile(s) to use
 `nextflow.ansi_log`         | bool |          | false    | Enable ANSI logging
 `nextflow.nf_module`        | str  |          | nextflow | NextFlow envmodule to load
 `nextflow.java_module`      | str  |          | java     | Java envmodule to load

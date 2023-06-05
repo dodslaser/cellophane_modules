@@ -15,7 +15,6 @@ Option                            | Type      | Required | Default | Description
 `slims.url`                       | str       | x        |         | SLIMS Server URL
 `slims.username`                  | str       | x        |         | SLIMS username
 `slims.password`                  | str       | x        |         | SLIMS password
-`slims.content_type`              | int       | x        |         | Content type PK for sample records
 `slims.map`                       | list[str] |          |         | Mapping of keys to SLIMS field(s) (see [Fields](#Fields)/[Mappings](#Mappings))
 `slims.derive`                    | list[str] |          |         | Mapping of keys to SLIMS field(s) (see [Derivations](#Derivations)/[Fields](#Fields)/[Mappings](#Mappings))
 `slims.find_criteria`             | str       | x        |         | SLIMS criteria for finding records (see [Criteria](#Criteria))

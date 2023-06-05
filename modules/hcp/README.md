@@ -4,26 +4,6 @@ Fetch sample files from HCP backup (using NGPIris). If the backup attribute is s
 
 ## Configuration
 
-type: object
-properties:
-  iris:
-    type: object
-    properties:
-      credentials:
-        type: path
-        description: IRIS credentials file
-      fastq_temp:
-        type: path
-        description: Temporary directory for fastq files
-      parallel:
-        type: integer
-        description: Number of parallel HCP conenctions
-        default: 4
-    required:
-      - credentials
-      - fastq_temp
-
-
 Option             | Type      | Required | Default | Description
 -------------------|-----------|----------|---------|-------------
 `iris.credentials` | str       | x        |         | Path to iris credentials file
