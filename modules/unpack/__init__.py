@@ -43,10 +43,12 @@ def unpack(
                         if _proc:
                             _procs.append(_proc)
 
+    # Avoid returning before the processes finish
+    sleep(0.1)
     while any(p.is_alive() for p in _procs) or not _output_queue.empty():
         s_idx, f_idx, extracted_path = _output_queue.get()
         samples[s_idx].files[f_idx] = extracted_path
-        # This avoids locking when the queue empties before the processes finish
+        # Avoid locking when the queue empties before the processes finish
         # FIXME: Is there a better way to do this?
         sleep(0.1)
 
