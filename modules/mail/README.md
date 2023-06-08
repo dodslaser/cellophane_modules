@@ -6,7 +6,6 @@ Module for sending start/end mail notifications.
 
 Option                 | Type | Required | Default             | Description
 -----------------------|------|----------|---------------------|-------------
-`mail.skip`            | bool |          | false               | Don't send mail
 `mail.start.subject`   | str  |          | See [Start](#Start) | Subject of the mail (jinja2 template)
 `mail.start.body`      | str  |          | See [Start](#Start) | Body of the mail (jinja2 template)
 `mail.start.from_addr` | str  | -        |                     | From address to use
