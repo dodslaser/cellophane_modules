@@ -84,7 +84,7 @@ def hcp_fetch(
                         s_idx=s_idx,
                         f_idx=f_idx,
                     )
-                _futures.append(_future)
+                    _futures.append(_future)
 
     _failed: list[int] = []
     for f in as_completed(_futures):
