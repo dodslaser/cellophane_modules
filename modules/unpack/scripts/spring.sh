@@ -4,7 +4,7 @@ set -e -o pipefail
 
 module load spring
 
-extract_path="$(dirname ${COMPRESSED_PATH})/$(basename -s 'spring' ${COMPRESSED_PATH}).fastq.gz"
+extract_path="$(dirname ${COMPRESSED_PATH})/$(basename -s '.spring' ${COMPRESSED_PATH}).fastq.gz"
 
 echo "spring \
 --decompress \
