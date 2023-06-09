@@ -7,6 +7,10 @@ properties:
       - end
       - smtp
     properties:
+      skip:
+        type: skip
+        description: "Skip sending mail"
+        default: false
       start:
         type: object
         required:
