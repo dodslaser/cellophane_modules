@@ -22,12 +22,12 @@ def _sync_callback(
 
 
 def _sync_error_callback(
-    code: int,
+    exception: Exception,
     logger: LoggerAdapter,
     outputs: list[data.Output],
 ):
     logger.error(
-        f"Sync failed for {sum(len(o.src) for o in outputs)} outputs ({code=})"
+        f"Sync failed for {sum(len(o.src) for o in outputs)} outputs: {exception!r}"
     )
 
 

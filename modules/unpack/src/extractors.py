@@ -37,11 +37,11 @@ class Extractor:
 
     @staticmethod
     def error_callback(
-        code: int,
+        exception: Exception,
         compressed_path: Path,
         logger: LoggerAdapter,
     ) -> None:
-        logger.error(f"Failed to extract {compressed_path.name} ({code}))")
+        logger.error(f"Failed to extract {compressed_path.name} - {exception!r}")
 
     def extract(
         self,
