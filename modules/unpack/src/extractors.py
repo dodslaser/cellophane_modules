@@ -94,7 +94,7 @@ class Extractor:
 class PetageneExtractor(
     Extractor,
     label="petagene",
-    script=Path(__file__).parent / "scripts" / "petagene.sh",
+    script=Path(__file__).parent.parent / "scripts" / "petagene.sh",
 ):
     @staticmethod
     def extracted_paths(compressed_path: Path) -> Iterator[Path]:
@@ -107,7 +107,7 @@ class PetageneExtractor(
 class SpringExtractor(
     Extractor,
     label="spring",
-    script=Path(__file__).parent / "scripts" / "spring.sh",
+    script=Path(__file__).parent.parent / "scripts" / "spring.sh",
 ):
     @staticmethod
     def extracted_paths(compressed_path: Path) -> Iterator[Path]:
