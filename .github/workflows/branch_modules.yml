@@ -29,7 +29,7 @@ jobs:
       env:
         REPO: self
         BRANCH: ${{ matrix.module }}
-        FOLDER: ${{ matrix.module }}
+        FOLDER: cellophane_modules/${{ matrix.module }}
         GITHUB_TOKEN: ${{ github.token }}
         SKIP_EMPTY_COMMITS: true
         MESSAGE: "Update to {sha}: {msg}"

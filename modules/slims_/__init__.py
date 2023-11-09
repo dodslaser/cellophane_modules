@@ -1,38 +1,47 @@
 """Module for getting samples from SLIMS"""
 
-from copy import deepcopy
-from functools import cached_property
+from functools import cached_property, reduce
 from logging import LoggerAdapter
 from typing import Literal
 
-from attrs import define, field
+from attrs import define, field, fields_dict
+from attrs.setters import validate
 from cellophane import cfg, data, modules
 from slims.slims import Record, Slims
+from copy import deepcopy
 
 from .src.util import get_field, get_records
+
+import logging
 
 
 @define(slots=False, init=False)
 class SlimsSample(data.Sample):
     """A sample container with SLIMS integration"""
 
-    derived: list[tuple[Record, dict]] | None = field(default=None)
-    record: Record | None = field(default=None)
-    state: Literal["novel", "running", "complete", "error"] = field(default="novel")
+    derived: list[tuple[Record, dict]] | None = field(default=None, on_setattr=validate)
+    record: Record | None = field(default=None, on_setattr=validate)
+    state: Literal["novel", "running", "complete", "error"] = field(
+        default="novel", on_setattr=validate
+    )
+    _connection: Slims | None = field(default=None, init=False)
 
     @classmethod
     def from_record(cls, record: Record, config: cfg.Config, **kwargs):
         """Create a sample from a SLIMS fastq record"""
-
         _sample = cls(
             id=record.cntn_id.value,
             state="novel",
-            **{
-                key: get_field(record, field)
-                for key, field in config.slims.map[0].items()
-            },
             **kwargs,
-        )  # type: ignore[call-arg]
+        )
+        for key, _field in config.slims.get("map", {}).items():
+            if key in kwargs:
+                continue
+            elif (k := key.split("."))[0] not in fields_dict(cls):
+                raise KeyError(f"Unable to map '{key}' to field in sample")
+            node = reduce(getattr, k[:-1], _sample)
+            setattr(node, k[-1], get_field(record, _field))
+
         _sample.record = record
         return _sample
 
@@ -45,22 +54,24 @@ class SlimsSample(data.Sample):
             self.derived = [(None, key_map) for key_map in config.slims.derive]
         if self.record:
             for idx, (record, key_map) in enumerate(self.derived):
-                fields = {key: value.format(**self) for key, value in key_map.items()}
+                fields = {
+                    key: value.format(sample=self) for key, value in key_map.items()
+                }
                 fields |= {
                     "cntn_id": self.record.cntn_id.value,
-                    "cntn_fk_originalContent": self.record.pk(),
+                    "cntn_fk_originalContent": self.pk,
                     "cntn_fk_user": config.slims.username,
                 }
                 if record:
                     self.derived[idx] = (record.update(fields), key_map)
-                elif self._connection:
+                elif self.connection:
                     self.derived[idx] = (
-                        self._connection.add("Content", fields),
+                        self.connection.add("Content", fields),
                         key_map,
                     )
 
     @derived.validator
-    def validate_derived(
+    def _validate_derived(
         self,
         attribute: str,
         value: list[tuple[Record | None, dict]] | None,
@@ -79,45 +90,64 @@ class SlimsSample(data.Sample):
             )
 
     @record.validator
-    def validate_record(self, attribute: str, value: Record | None):
+    def _validate_record(self, attribute: str, value: Record | None):
         if not (value is None or isinstance(value, Record)):
             raise ValueError(
                 f"Expected 'NoneType' or 'Record' for {attribute}, got {value}"
             )
 
     @state.validator
-    def validate_state(
+    def _validate_state(
         self, attribute: str, value: Literal["novel", "running", "complete", "error"]
     ):
-        """Set the state of the sample"""
         if value not in ["novel", "running", "complete", "error"]:
             raise ValueError(f"Invalid value for {attribute}: {value}")
 
     @property
     def pk(self):
+        """Get the primary key of the record"""
         return self.record.pk()
 
-    @cached_property
-    def _connection(self) -> Slims | None:
+    @property
+    def connection(self) -> Slims | None:
         """Get a connection to SLIMS from the record"""
-
-        return (
-            Slims(
+        if self._connection is None and self.record:
+            self._connection = Slims(
                 "cellophane",
                 url=self.record.slims_api.raw_url,
                 username=self.record.slims_api.username,
                 password=self.record.slims_api.password,
             )
-            if self.record is not None
-            else None
-        )
+
+        return self._connection
 
     def __reduce__(self) -> str | tuple:
         """Remove open connection before pickle"""
-
-        if hasattr(self, "_connection"):
-            delattr(self, "_connection")
+        self._connection = None
         return super().__reduce__()
+
+
+@data.Sample.merge.register("record")
+def _(this, _):
+    return this
+
+
+@data.Sample.merge.register("_connection")
+def _(*_):
+    return None
+
+
+@data.Sample.merge.register("state")
+def _(this, that):
+    if any(s != "complete" for s in (this, that)):
+        return "error"
+    else:
+        return "complete"
+
+
+@data.Sample.merge.register("derived")
+def _(this, that):
+    return this + that
 
 
 class SlimsSamples(data.Samples):
@@ -130,10 +160,11 @@ class SlimsSamples(data.Samples):
         config: cfg.Config,
     ) -> "SlimsSamples":
         """Get samples from SLIMS records"""
-
         return cls(
             [
-                cls.sample_class.from_record(record=record, config=config)
+                cls.sample_class.from_record(  # pylint: disable=no-member
+                    record=record, config=config
+                )
                 for record in records
             ]
         )
@@ -148,11 +179,8 @@ class SlimsSamples(data.Samples):
 
     def set_state(self, value: Literal["novel", "running", "complete", "error"]):
         """Set the state of the samples"""
-        if value not in ["novel", "running", "complete", "error"]:
-            raise ValueError(f"Invalid state: {value}")
-        else:
-            for sample in self:
-                sample.state = value
+        for sample in self:
+            sample.state = value
 
 
 @modules.pre_hook(label="SLIMS Fetch", before=["hcp_fetch", "slims_bioinformatics"])
@@ -163,96 +191,99 @@ def slims_fetch(
     **_,
 ) -> SlimsSamples | None:
     """Load novel samples from SLIMS."""
-    if "slims" in config:
-        slims_connection = Slims(
-            name=__package__,
-            url=config.slims.url,
-            username=config.slims.username,
-            password=config.slims.password,
-        )
+    if any(w not in config.slims for w in ["url", "username", "password"]):
+        logger.warning("SLIMS connection not configured")
+        return
 
-        slims_ids: list[str] | None = None
-        max_age: str | None = None
-        if samples:
-            logger.info("Augmenting existing samples with info from SLIMS")
-            slims_ids = [s.id for s in samples]
+    slims_connection = Slims(
+        name=__package__,
+        url=config.slims.url,
+        username=config.slims.username,
+        password=config.slims.password,
+    )
 
-        elif config.slims.id:
-            logger.info("Fetching samples from SLIMS by ID")
-            slims_ids = config.slims.id
+    slims_ids: list[str] | None = None
+    if samples:
+        logger.info("Augmenting existing samples with info from SLIMS")
+        slims_ids = [s.id for s in samples]
 
-        else:
-            logger.info(f"Fetching samples from the last {config.slims.novel_max_age}")
-            max_age = config.slims.novel_max_age
+    elif config.slims.get("id"):
+        logger.info("Fetching samples from SLIMS by ID")
+        slims_ids = config.slims.id
 
-        records = get_records(
-            string_criteria=config.slims.find_criteria,
-            connection=slims_connection,
-            slims_id=slims_ids,
-            max_age=max_age,
-            unrestrict_parents=config.slims.unrestrict_parents,
-        )
+    records = get_records(
+        string_criteria=config.slims.find_criteria,
+        connection=slims_connection,
+        slims_id=slims_ids,
+        max_age=config.slims.novel_max_age,
+        unrestrict_parents=config.slims.unrestrict_parents,
+    )
 
-        if samples and records:
-            for idx, sample in enumerate(samples):
-                match = [
-                    m
-                    for m in samples.from_records(records, config)
-                    if m.id == sample.id
-                ]
-                common_keys = set([k for s in match for k in s]) & set(sample.keys())
-                for key in common_keys:
-                    _match = []
-                    for match_sample in match:
-                        if (
-                            (m_value := match_sample[key])
-                            and (s_value := sample[key])
-                            and s_value == m_value
-                        ):
-                            _match.append(match_sample)
-                    match = _match
+    if not records:
+        logger.warning("No SLIMS samples found")
+        return None
 
-                if len(match) > 1:
-                    logger.warning(f"Multiple SLIMS samples found for {sample.id}")
-                elif len(match) == 0:
-                    logger.warning(f"SLIMS sample not found for {sample.id}")
-                else:
-                    if sample.files is None:
-                        sample.pop("files")
-                    _data = {key: sample[key] or match[0][key] for key in sample.keys()}
-                    samples[idx] = sample.__class__(**deepcopy(_data))
-
-            return samples
-
-        elif records:
-            if config.slims.check:
-                logger.info("Checking SLIMS for completed samples")
-                check = get_records(
-                    string_criteria=config.slims.check_criteria,
-                    connection=slims_connection,
-                    derived_from=records,
+    if samples:
+        slims_samples = samples.from_records(records, config)
+        for sample in deepcopy(samples):
+            matches = [
+                slims_sample
+                for slims_sample in slims_samples
+                if sample.id == slims_sample.id
+                and all(
+                    sample.meta.get(k) == slims_sample.meta.get(k) for k in sample.meta
                 )
+            ]
 
-                original_ids = [r.cntn_id.value for r in records]
-                records = [
-                    record
-                    for record in records
-                    if record.pk()
-                    not in [b.cntn_fk_originalContent.value for b in check]
-                ]
+            if not matches:
+                logger.warning(f"Unable to find SLIMS record for {sample.id}")
+                continue
+                
+            elif len(matches) > 1 and not config.slims.allow_duplicates:
+                logger.warning(f"Found multiple SLIMS records for {sample.id}")
+                continue
+            
+            else:
+                logger.debug(f"Found {len(matches)} SLIMS records(s) for {sample.id}")
 
-                for sid in set(original_ids) - set([r.cntn_id.value for r in records]):
-                    logger.info(f"Found completed bioinformatics for {sid}")
+            sample_kwargs = {
+                k: v
+                for k, f in fields_dict(sample.__class__).items()
+                if k not in ("id", "state", "uuid", "record", "derived")
+                and (v := getattr(sample, k))
+                != (f.default.factory() if hasattr(f.default, "factory") else f.default)
+            }
+            for match in matches:
+                match_sample = sample.from_record(match.record, config, **sample_kwargs)
+                samples.insert(samples.index(sample), match_sample)
 
-            return samples.from_records(records, config)
-
-        else:
-            logger.warning("No SLIMS samples found")
-            return None
+            samples.remove(sample)
+        return samples
 
     else:
-        logger.warning("No SLIMS connection configured")
-        return None
+        logger.debug(f"Found {len(records)} SLIMS samples")
+        if "check_criteria" not in config.slims:
+            logger.info("No SLIMS check criteria - Skipping check")
+            return samples.from_records(records, config)
+
+        logger.info("Checking SLIMS for completed samples")
+        check = get_records(
+            string_criteria=config.slims.check_criteria,
+            connection=slims_connection,
+            derived_from=records,
+        )
+
+        original_ids = [r.cntn_id.value for r in records]
+        records = [
+            record
+            for record in records
+            if record.pk() not in [b.cntn_fk_originalContent.value for b in check]
+        ]
+
+        for sid in set(original_ids) - set([r.cntn_id.value for r in records]):
+            logger.info(f"Found completed bioinformatics for {sid}")
+
+        return samples.from_records(records, config)
 
 
 @modules.pre_hook(label="SLIMS Derive", after=["slims_fetch"])
@@ -263,11 +294,14 @@ def slims_derive(
     **_,
 ) -> SlimsSamples:
     """Add derived content to SLIMS samples"""
-    if config.slims.dry_run:
+    if not "derive" in config.slims:
+        return samples
+    elif config.slims.dry_run:
         logger.debug("Dry run - Not adding derived records")
-    elif config.slims.derive and samples:
-        logger.info("Creating derived records")
-        samples.update_derived(config)
+        return samples
+
+    logger.info("Creating derived records")
+    samples.update_derived(config)
     return samples
 
 
@@ -280,9 +314,14 @@ def slims_running(
 ) -> SlimsSamples:
     """Add derived content to SLIMS samples"""
     samples.set_state("running")
-    if not config.slims.dry_run:
-        logger.info("Setting SLIMS samples to running")
-        samples.update_derived(config)
+    if not "derive" in config.slims:
+        return samples
+    elif config.slims.dry_run:
+        logger.debug("Dry run - Not updating SLIMS")
+        return samples
+
+    logger.info("Setting SLIMS samples to running")
+    samples.update_derived(config)
     return samples
 
 
@@ -294,30 +333,24 @@ def slims_update(
     **_,
 ) -> None:
     """Update SLIMS samples and derived records."""
-    if config.slims.dry_run:
+    if not "derive" in config.slims:
+        return samples
+    elif config.slims.dry_run:
         logger.info("Dry run - Not updating SLIMS")
-        return
+        return samples
 
-    complete = samples.__class__.from_records(
-        records=[*{s.pk: s.record for s in samples.complete}.values()], config=config
-    )
-    failed = samples.__class__.from_records(
-        records=[*{s.pk: s.record for s in samples.failed}.values()], config=config
-    )
-
-    if not complete and not failed:
-        logger.info("No samples to update")
-
-    if complete:
+    if complete := samples.complete:
         logger.info(f"Marking {len(complete)} samples as complete")
         for sample in complete:
             logger.debug(f"Marking {sample.id} as complete")
         complete.set_state("complete")
         complete.update_derived(config)
 
-    if failed:
+    if failed := samples.failed:
         logger.warning(f"Marking {len(failed)} samples as failed")
         for sample in failed:
             logger.debug(f"Marking {sample.id} as failed")
         failed.set_state("error")
         failed.update_derived(config)
+
+    return samples

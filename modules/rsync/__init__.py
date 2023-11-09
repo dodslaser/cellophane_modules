@@ -1,11 +1,12 @@
 import multiprocessing as mp
+from copy import copy
 from functools import partial
-from pathlib import Path
-from logging import LoggerAdapter
 from itertools import groupby
-from humanfriendly import parse_size
+from logging import LoggerAdapter
+from pathlib import Path
 
-from cellophane import modules, data, cfg, sge
+from cellophane import cfg, data, modules, sge
+from humanfriendly import parse_size
 
 
 def _sync_callback(
@@ -31,60 +32,44 @@ def _sync_error_callback(
     )
 
 
-def _group_by_dest_dir(outputs: list[data.Output]):
-    _outputs = sorted(outputs, key=lambda o: o.dest_dir)
-    return [
-        data.Output(src=[*set(s for o in g for s in o.src)], dest_dir=k)
-        for k, g in groupby(_outputs, lambda o: o.dest_dir)
-    ]
-
-
 @modules.post_hook(label="Sync Output", condition="complete")
 def rsync_results(
     samples: data.Samples,
     logger: LoggerAdapter,
     config: cfg.Config,
-    outdir: Path,
+    workdir: Path,
     **_,
 ) -> None:
     if "rsync" not in config:
         logger.info("Rsync not configured")
         return
-    elif not any(s.output for s in samples):
+    elif not samples.output:
         logger.warning("No output to sync")
         return
     else:
-        logger.info(f"Syncing output to {config.rsync.base}")
+        logger.info(f"Syncing output to {config.resultdir}")
 
-    _outputs = [o for s in samples for o in s.output or []]
     # Split outputs into large files, small files, and directories
     _large_files: list[data.Output] = []
     _small_files: list[data.Output] = []
     _directories: list[data.Output] = []
+    _outputs = copy(samples.output)
     for output in _outputs:
-        for src in output.src:
-            _output = data.Output(
-                src=src.absolute(),
-                dest_dir=(config.rsync.base / output.dest_dir).absolute(),
-            )
-
-            if not src.exists():
-                logger.warning(f"{src} does not exist")
-            elif [*_output.dest_dir.glob("*")] and not config.rsync.overwrite:
-                logger.warning(f"{_output.dest_dir} is not empty")
-            elif not _output.dest_dir.is_relative_to(config.rsync.base):
-                logger.warning(f"{_output.dest_dir} is outside {config.rsync.base}")
-            elif src.is_dir():
-                _directories.append(_output)
-            elif src.stat().st_size > parse_size(config.rsync.large_file_threshold):
-                _large_files.append(_output)
-            else:
-                _small_files.append(_output)
-
-    # Merge outputs with the same destination directory
-    _large_files = _group_by_dest_dir(_large_files)
-    _small_files = _group_by_dest_dir(_small_files)
-    _directories = _group_by_dest_dir(_directories)
+        if not output.src.exists():
+            logger.warning(f"{output.src} does not exist")
+            samples.output.remove(output)
+        elif [*output.dst.parent.glob("*")] and not config.rsync.overwrite:
+            logger.warning(f"{output.dst} is not empty")
+            samples.output.remove(output)
+        elif not output.dst.is_relative_to(config.resultdir):
+            logger.warning(f"{output.dst} is outside {config.rsync.base}")
+            samples.output.remove(output)
+        elif output.src.is_dir():
+            _directories.append(output)
+        elif output.src.stat().st_size > parse_size(config.rsync.large_file_threshold):
+            _large_files.append(output)
+        else:
+            _small_files.append(output)
 
     _procs: list[mp.Process] = []
     for tag, label, category in (
@@ -105,14 +90,17 @@ def rsync_results(
         ),
     ):
         if category:
-            logger.info(f"Syncing {sum(len(o.src) for o in category)} {label}")
-            manifest_path = outdir / f"rsync.{tag}.manifest"
-            with open(manifest_path, "w") as manifest:
+            logger.info(f"Syncing {len(category)} {label}")
+            manifest_path = workdir / f"rsync.{tag}.manifest"
+            with open(manifest_path, mode="w", encoding="utf-8") as manifest:
                 for o in category:
-                    manifest.write(" ".join(str(s) for s in [*o.src, o.dest_dir, "\n"]))
+                    manifest.write(f"{o.src.absolute()} {o.dst.absolute()}\n")
 
             for o in category:
-                o.dest_dir.mkdir(parents=True, exist_ok=True)
+                o.dst.parent.mkdir(parents=True, exist_ok=True)
+
+            logger.debug(f"Manifest: {manifest_path}")
+            logger.debug(manifest_path.read_text(encoding="utf-8"))
 
             _proc = sge.submit(
                 str(Path(__file__).parent / "scripts" / "rsync.sh"),

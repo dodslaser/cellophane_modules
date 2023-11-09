@@ -2,23 +2,26 @@ type: object
 properties:
   mail:
     type: object
-    required:
-      - start
-      - end
-      - smtp
+    if: {properties: {send: {const: true}}}
+    then: {required: [smtp, from_addr, to_addr]}
     properties:
-      skip:
-        type: skip
-        description: "Skip sending mail"
+      send:
+        type: boolean
+        description: "Send mail"
         default: false
+      from_addr:
+        type: string
+        description: "Default from address"
+      to_addr:
+        type: array
+        description: "Default list of recipients"
+      cc_addr:
+        type: array
+        description: "Default list of CC recipients"
+      
       start:
         type: object
-        required:
-          - subject
-          - body
-          - from_addr
-          - to_addr
-        properties: &message
+        properties:
           subject:
             type: string
             description: "Subject of the mail (jinja2 template)"
@@ -33,24 +36,10 @@ properties:
               {% for id in samples.unique_ids %}
               {{ id }}
               {%- endfor %}
-          from_addr:
-            type: string
-            description: "From address to use"
-          to_addr:
-            type: array
-            description: "List of recipients"
-          cc_addr:
-            type: array
-            description: "List of CC recipients" 
+      
       end:
         type: object
-        required:
-          - subject
-          - body
-          - from_addr
-          - to_addr
         properties:
-          <<: *message
           subject:
             type: string
             description: "Subject of the mail (jinja2 template)"
@@ -72,6 +61,7 @@ properties:
               {{ id }}
               {%- endfor %}
               {% endif %}
+      
       smtp:
         type: object
         required:

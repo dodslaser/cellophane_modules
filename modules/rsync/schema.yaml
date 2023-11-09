@@ -1,13 +1,11 @@
-type: object
+required:
+  - rsync
 properties:
   rsync:
     type: object
     required:
       - base
     properties:
-      base:
-        type: path
-        description: Base of directory where results will be stored
       overwrite:
         type: boolean
         description: Overwrite existing results

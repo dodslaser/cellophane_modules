@@ -32,15 +32,14 @@ def unpack(
                     # FIXME: This will break for multi-extensions (e.g. .my.fancy.ext)
                     if compressed_path.suffix == ext:
                         samples[s_idx].files[f_idx] = None
-                        _proc = extractor.extract(
+                        if _proc := extractor.extract(
                             s_idx,
                             f_idx,
                             logger=logger,
                             compressed_path=compressed_path,
                             output_queue=_output_queue,
                             config=config,
-                        )
-                        if _proc:
+                        ):
                             _procs.append(_proc)
 
     # Avoid returning before the processes finish

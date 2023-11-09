@@ -1,56 +1,70 @@
 """Module for fetching files from HCP."""
 
 import sys
-from concurrent.futures import ProcessPoolExecutor, Future, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from logging import LoggerAdapter
 from pathlib import Path
-from typing import Sequence
-from attrs import define, field
+
+from attrs import Attribute, define, field
 from cellophane import cfg, data, modules
-from NGPIris import hcp
-
-
-@define(slots=False, init=False)
-class HCPSample(data.Sample):
-    """Sample with HCP backup."""
-
-    backup: list[str] | None = field(default=None)
-
-    @backup.validator
-    def validate_backup(self, attribute: str, value: Sequence[str] | None) -> None:
-        if not (
-            value is None
-            or (isinstance(value, Sequence) and all(isinstance(v, str) for v in value))
-        ):
-            raise ValueError(f"Invalid {attribute} value: {value}")
+from NGPIris.hcp import HCPManager
 
 
 def _fetch(
     credentials: Path,
     local_path: Path,
     remote_key: str,
-    s_idx: int,
-    f_idx: int,
-) -> tuple[int, int, str, Path]:
+) -> str:
     sys.stdout = open("/dev/null", "w", encoding="utf-8")
     sys.stderr = open("/dev/null", "w", encoding="utf-8")
     if local_path.exists():
-        return s_idx, f_idx, "cache", local_path
+        return "cache"
 
-    else:
-        hcpm = hcp.HCPManager(
-            credentials_path=credentials,
-            bucket="data",  # FIXME: make this configurable
-        )
+    hcpm = HCPManager(
+        credentials_path=credentials,
+        bucket="data",  # FIXME: make this configurable
+    )
 
-        hcpm.download_file(
-            remote_key,
-            local_path=str(local_path),
-            callback=False,
-            force=True,
-        )
+    hcpm.download_file(
+        remote_key,
+        local_path=str(local_path),
+        callback=False,
+        force=True,
+    )
 
-        return s_idx, f_idx, "hcp", local_path
+    return "hcp"
+
+
+@define(slots=False, init=False)
+class HCPSample(data.Sample):
+    """Sample with HCP backup."""
+
+    hcp_remote_keys: set[str] | None = field(
+        default=None,
+        kw_only=True,
+        converter=lambda value: None if value is None else set(value),
+    )
+
+    @hcp_remote_keys.validator
+    def _validate_hcp_remote_keys(
+        self,
+        attribute: Attribute,
+        value: set[str] | None,
+    ) -> None:
+        if value is None:
+            return
+        elif any(not isinstance(v, str) for v in value):
+            raise TypeError(f"Invalid type for value in {attribute.name}: {value}")
+        elif len(value) != len(self.files):
+            raise ValueError(
+                f"Length mismatch between {attribute.name} and files: "
+                f"{len(value)} != {len(self.files)}"
+            )
+
+
+@data.Sample.merge.register("backup")
+def _(this, that):
+    return this | that
 
 
 @modules.pre_hook(label="HCP", after=["slims_fetch"])
@@ -61,38 +75,46 @@ def hcp_fetch(
     **_,
 ) -> data.Samples:
     """Fetch files from HCP."""
-
-    if "hcp" not in config:
-        logger.info("HCP not configured")
+    if any(k not in config.get("hcp", {}) for k in ["credentials", "fastq_temp"]):
+        logger.warning("HCP not configured")
         return samples
 
-    _futures: list[Future] = []
-    with ProcessPoolExecutor(max_workers=config.hcp.parallel) as pool:
+    _futures: dict[Future, tuple[int, int, Path]] = {}
+    with ThreadPoolExecutor(max_workers=config.hcp.parallel) as pool:
         for s_idx, sample in enumerate(samples):
             if all(Path(f).exists() for f in sample.files):
                 logger.info(f"All files for {sample.id} found locally")
                 continue
+            elif sample.hcp_remote_keys is None:
+                logger.warning(f"No backup for {sample.id}")
+                sample.files = []
             else:
                 sample.files = []
-                for f_idx, remote_key in enumerate(sample.backup):
-                    logger.info(f"Fetching {remote_key}")
+                for f_idx, remote_key in enumerate(sample.hcp_remote_keys):
+                    logger.debug(f"Fetching {remote_key}")
+                    _local_path = config.hcp.fastq_temp / Path(remote_key).name
                     _future = pool.submit(
                         _fetch,
                         credentials=config.hcp.credentials,
-                        local_path=config.hcp.fastq_temp / Path(remote_key).name,
+                        local_path=_local_path,
                         remote_key=remote_key,
-                        s_idx=s_idx,
-                        f_idx=f_idx,
                     )
-                    _futures.append(_future)
+                    _futures[_future] = (s_idx, f_idx, _local_path)
+
+    if not _futures:
+        return samples
+
+    logger.info(f"Fetching {len(_futures)} files from HCP")
 
     _failed: list[int] = []
     for f in as_completed(_futures):
+        s_idx, f_idx, local_path = _futures[f]
         try:
-            s_idx, f_idx, location, local_path = f.result()
+            location = f.result()
         except Exception as e:
             logger.error(f"Failed to fetch {local_path.name} ({e})")
             samples[s_idx].files = []
+            samples[s_idx].hcp_remote_keys = None
             _failed.append(s_idx)
         else:
             if s_idx not in _failed:
