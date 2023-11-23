@@ -123,6 +123,9 @@ def _mail_hook(
     when: Literal["start", "end"],
     **_,
 ):
+    if not samples:
+        logger.info(f"No samples to send {when} mail for")
+        return samples
     if config.mail.send:
         logger.info(f"Sending {when} mail")
         subject, body = _render_mail(
