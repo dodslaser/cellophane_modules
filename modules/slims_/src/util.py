@@ -25,6 +25,7 @@ from slims.criteria import (
 from slims.slims import Record, Slims
 from functools import cache
 
+
 @cache
 def split_criteria(criteria: str) -> list[str]:
     """
@@ -34,10 +35,11 @@ def split_criteria(criteria: str) -> list[str]:
     ['a is x', 'and', 'b is y or c is d', 'or', 'g is h']
     """
 
+    parts = []
     _criteria = " ".join(criteria.split())
-    parts: list[str] = []
     part = ""
     depth = 0
+
     while _criteria:
         if _criteria[0] == "(":
             if depth > 0:
@@ -47,25 +49,22 @@ def split_criteria(criteria: str) -> list[str]:
             if depth > 1:
                 part += ")"
             depth -= 1
-        elif _criteria[1:4] == "and" and depth == 0:
-            parts += part, "and"
-            _criteria, part = _criteria[4:], ""
-        elif _criteria[1:3] == "or" and depth == 0:
-            parts += part, "or"
-            _criteria, part = _criteria[3:], ""
+        elif _criteria[0:5] == " and " and depth == 0:
+            parts = [part, "and", _criteria[5:]]
+            break
+        elif _criteria[0:4] == " or " and depth == 0:
+            parts = [part, "or", _criteria[4:]]
+            break
         else:
             part += _criteria[0]
-        
-        if len(_criteria) == 1:
-            parts.append(part)
+
         _criteria = _criteria[1:]
 
     if depth != 0:
         raise ValueError(f"Unmatched parentheses: {criteria}")
 
-    while len(parts) == 1 and any(w in parts[0] for w in [" and ", " or ", "(", ")"]):
-        parts = split_criteria(parts[0])
-    return parts
+    return parts or [part]
+
 
 def parse_criteria(  # type: ignore[return]
     criteria: str | list[str],
@@ -93,13 +92,11 @@ def parse_criteria(  # type: ignore[return]
             "less_than",
         ]):
             raise ValueError(f"Invalid criteria: {criteria}")
-        case str(criteria) if criteria.startswith("->") and not parent_records:
-            raise ValueError("Cannot use leading '->' without parent record(s)")
         case str(criteria) if criteria.startswith("->"):
-            _parsed = parse_criteria(criteria[2:])
             if parent_records is None:
                 raise ValueError("Cannot use leading '->' without parent record(s)")
             else:
+                _parsed = parse_criteria(criteria[2:])
                 parent_pks = [p.pk() for p in parent_records]
                 return [
                     conjunction()
@@ -126,9 +123,9 @@ def parse_criteria(  # type: ignore[return]
             else:
                 return parse_criteria(criteria)
 
-        case [a, "and", *b]:
+        case [a, "and", b]:
             return [conjunction().add(parse_criteria(a)[0]).add(parse_criteria(b)[0])]
-        case [a, "or", *b]:
+        case [a, "or", b]:
             return [disjunction().add(parse_criteria(a)[0]).add(parse_criteria(b)[0])]
 
         case [field, *_] if not field.startswith("cntn_"):
@@ -145,12 +142,12 @@ def parse_criteria(  # type: ignore[return]
 
         case [field, "equals_ignore_case", value]:
             return [equals_ignore_case(field, value)]
-        case [field, "not_equals_ignore_case ", value]:
+        case [field, "not_equals_ignore_case", value]:
             return [is_not(equals_ignore_case(field, value))]
 
         case [field, "contains", value]:
             return [contains(field, value)]
-        case [field, "not_contains ", value]:
+        case [field, "not_contains", value]:
             return [is_not(contains(field, value))]
 
         case [field, "starts_with", value]:
