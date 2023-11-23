@@ -111,8 +111,8 @@ def hcp_fetch(
         s_idx, f_idx, local_path = _futures[f]
         try:
             location = f.result()
-        except Exception as e:
-            logger.error(f"Failed to fetch {local_path.name} ({e})")
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.error(f"Failed to fetch {local_path.name} ({exc})")
             samples[s_idx].files = []
             samples[s_idx].hcp_remote_keys = None
             _failed.append(s_idx)

@@ -1,6 +1,7 @@
 """Module for getting samples from SLIMS"""
 
-from functools import cached_property, reduce
+from copy import deepcopy
+from functools import reduce
 from logging import LoggerAdapter
 from typing import Literal
 
@@ -8,11 +9,8 @@ from attrs import define, field, fields_dict
 from attrs.setters import validate
 from cellophane import cfg, data, modules
 from slims.slims import Record, Slims
-from copy import deepcopy
 
 from .src.util import get_field, get_records
-
-import logging
 
 
 @define(slots=False, init=False)
