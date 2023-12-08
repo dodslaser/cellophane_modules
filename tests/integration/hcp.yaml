@@ -18,9 +18,7 @@
     --hcp_credentials: "DUMMY"
     --hcp_fastq_temp: "cache"
   logs:
-    - |
-      Fetching 1 files from HCP
-      Fetched BACKUP (hcp)
+    - Fetched BACKUP from hcp
 
 - <<: *hcp_test
   id: fetch_cached
@@ -34,9 +32,7 @@
     cache:
       CACHED: CACHED
   logs:
-    - |
-      Fetching 1 files from HCP
-      Fetched CACHED (cache)
+    - Found CACHED locally
 
 - <<: *hcp_test
   id: no_backup
@@ -72,7 +68,7 @@
 - <<: *hcp_test
   id: fetch_exception
   mocks:
-    _cellophane_module_hcp._fetch:
+    _cellophane_module_hcp.HCPManager:
       exception: fetch_exception
   logs:
-  - Failed to fetch BACKUP (fetch_exception)
+  - Failed to fetch backup for BACKUP (fetch_exception)

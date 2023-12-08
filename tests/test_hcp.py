@@ -29,7 +29,7 @@ class Test__fetch:
                 credentials="CREDS",
                 local_path=tmp_path / "foo",
                 remote_key="foo",
-            )
+            )[0]
             == "hcp"
         )
 
@@ -40,8 +40,8 @@ class Test__fetch:
                 credentials="CREDS",
                 local_path=tmp_path / "bar",
                 remote_key="bar",
-            )
-            == "cache"
+            )[0]
+            == "local"
         )
 
         _hcpm_factory_mock.assert_called_once_with(

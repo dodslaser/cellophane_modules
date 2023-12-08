@@ -6,33 +6,62 @@ from logging import LoggerAdapter
 from pathlib import Path
 
 from attrs import Attribute, define, field
-from cellophane import cfg, data, modules
+from cellophane import cfg, data, modules, logs
 from NGPIris.hcp import HCPManager
+from mpire import WorkerPool
+from mpire.async_result import AsyncResult
+import logging
+import multiprocessing as mp
 
 
 def _fetch(
+    log_queue: mp.Queue = None,
+    *,
     credentials: Path,
     local_path: Path,
     remote_key: str,
 ) -> str:
     sys.stdout = open("/dev/null", "w", encoding="utf-8")
     sys.stderr = open("/dev/null", "w", encoding="utf-8")
+    logs.setup_queue_logging(log_queue)
+    logger = logging.LoggerAdapter(logging.getLogger(), {"label": "HCP Fetch"})
     if local_path.exists():
-        return "cache"
+        return "local", local_path
 
     hcpm = HCPManager(
         credentials_path=credentials,
         bucket="data",  # FIXME: make this configurable
     )
 
+    logger.info(f"Fetching {remote_key} from HCP")
     hcpm.download_file(
         remote_key,
         local_path=str(local_path),
         callback=False,
         force=True,
     )
+    return "hcp", local_path
 
-    return "hcp"
+
+def _callback(sample, f_idx, logger):
+    def inner(result: AsyncResult):
+        location, local_path = result
+        if location != "local":
+            logger.info(f"Fetched {local_path.name} from hcp")
+        else:
+            logger.debug(f"Found {local_path.name} locally")
+
+        sample.files.insert(f_idx, local_path)
+
+    return inner
+
+
+def _error_callback(sample, logger):
+    def inner(exception: Exception):
+        logger.error(f"Failed to fetch backup for {sample.id} ({exception})")
+        sample.files = []
+
+    return inner
 
 
 @define(slots=False, init=False)
@@ -72,6 +101,7 @@ def hcp_fetch(
     samples: data.Samples,
     config: cfg.Config,
     logger: LoggerAdapter,
+    log_queue: mp.Queue,
     **_,
 ) -> data.Samples:
     """Fetch files from HCP."""
@@ -79,46 +109,33 @@ def hcp_fetch(
         logger.warning("HCP not configured")
         return samples
 
-    _futures: dict[Future, tuple[int, int, Path]] = {}
-    with ThreadPoolExecutor(max_workers=config.hcp.parallel) as pool:
-        for s_idx, sample in enumerate(samples):
+    with WorkerPool(
+        n_jobs=config.hcp.parallel,
+        use_dill=True,
+        shared_objects=log_queue,
+    ) as pool:
+        for sample in samples:
             if all(Path(f).exists() for f in sample.files):
                 logger.info(f"All files for {sample.id} found locally")
                 continue
-            elif sample.hcp_remote_keys is None:
+
+            sample.files = []
+            if sample.hcp_remote_keys is None:
                 logger.warning(f"No backup for {sample.id}")
-                sample.files = []
-            else:
-                sample.files = []
-                for f_idx, remote_key in enumerate(sample.hcp_remote_keys):
-                    logger.debug(f"Fetching {remote_key}")
-                    _local_path = config.hcp.fastq_temp / Path(remote_key).name
-                    _future = pool.submit(
-                        _fetch,
-                        credentials=config.hcp.credentials,
-                        local_path=_local_path,
-                        remote_key=remote_key,
-                    )
-                    _futures[_future] = (s_idx, f_idx, _local_path)
+                continue
 
-    if not _futures:
-        return samples
+            for f_idx, remote_key in enumerate(sample.hcp_remote_keys):
+                pool.apply_async(
+                    _fetch,
+                    kwargs={
+                        "credentials": config.hcp.credentials,
+                        "local_path": config.hcp.fastq_temp / Path(remote_key).name,
+                        "remote_key": remote_key,
+                    },
+                    callback=_callback(sample, f_idx, logger),
+                    error_callback=_error_callback(sample, logger),
+                )
 
-    logger.info(f"Fetching {len(_futures)} files from HCP")
-
-    _failed: list[int] = []
-    for f in as_completed(_futures):
-        s_idx, f_idx, local_path = _futures[f]
-        try:
-            location = f.result()
-        except Exception as exc:  # pylint: disable=broad-except
-            logger.error(f"Failed to fetch {local_path.name} ({exc})")
-            samples[s_idx].files = []
-            samples[s_idx].hcp_remote_keys = None
-            _failed.append(s_idx)
-        else:
-            if s_idx not in _failed:
-                logger.info(f"Fetched {local_path.name} ({location})")
-                samples[s_idx].files.insert(f_idx, local_path)
+        pool.join()
 
     return samples
