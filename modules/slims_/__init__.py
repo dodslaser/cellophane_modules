@@ -7,7 +7,7 @@ from typing import Literal
 
 from attrs import define, field, fields_dict
 from attrs.setters import validate
-from cellophane import cfg, data, modules
+from cellophane import cfg, data, modules, util
 from slims.slims import Record, Slims
 
 from .src.util import get_field, get_records
@@ -32,13 +32,25 @@ class SlimsSample(data.Sample):
             state="novel",
             **kwargs,
         )
-        for key, _field in config.slims.get("map", {}).items():
-            if key in kwargs:
-                continue
-            elif (k := key.split("."))[0] not in fields_dict(cls):
-                raise KeyError(f"Unable to map '{key}' to field in sample")
-            node = reduce(getattr, k[:-1], _sample)
-            setattr(node, k[-1], get_field(record, _field))
+        _map = config.slims.get("map", {})
+        _keys = util.map_nested_keys(_map)
+        try:
+            for key in _keys:
+                if len(key) == 1 and key[0] in kwargs:
+                    continue
+                _field = reduce(lambda x, y: x[y], key, _map)
+                _value = get_field(record, _field)
+                if key[0] == "meta":
+                    _sample.meta[key[1:]] = _value
+                elif key[0] in fields_dict(cls):
+                    node = reduce(getattr, key[:-1], _sample)
+                    setattr(node, key[-1], _value)
+                else:
+                    raise KeyError
+        except Exception as exc:
+            raise KeyError(
+                f"Unable to map '{'.'.join(key)}' to field in sample"
+            ) from exc
 
         _sample.record = record
         return _sample
