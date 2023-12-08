@@ -1,10 +1,10 @@
-from cellophane import data
-from unittest.mock import MagicMock
-from slims.slims import Record
-from pytest import mark, param
-from ruamel.yaml import YAML
 from pathlib import Path
-from pytest import raises
+from unittest.mock import MagicMock
+
+from cellophane import data
+from pytest import mark, param, raises
+from ruamel.yaml import YAML
+from slims.slims import Record
 
 from cellophane_modules.slims.src import util as slims_util
 
@@ -20,7 +20,8 @@ class RecordMock(MagicMock):
                 for k, v in kwargs.items()
             }
         )
-
+    def __reduce__(self):
+        return (RecordMock, ())
 
 class Test_criteria:
     @staticmethod
