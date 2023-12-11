@@ -2,7 +2,7 @@
 
 set -e -o pipefail
 
-module load spring
+eval "${UNPACK_INIT}"
 
 extract_path="$(dirname ${COMPRESSED_PATH})/$(basename -s '.spring' ${COMPRESSED_PATH}).fastq.gz"
 
@@ -21,3 +21,5 @@ spring \
     --output-file $extract_path \
     --input-file $COMPRESSED_PATH \
     --num-threads $THREADS
+
+eval "${UNPACK_EXIT}"

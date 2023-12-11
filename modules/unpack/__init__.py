@@ -5,7 +5,7 @@ from logging import LoggerAdapter
 from pathlib import Path
 from time import sleep
 
-from cellophane import cfg, data, modules
+from cellophane import cfg, data, executors, modules
 
 from .src.extractors import PetageneExtractor, SpringExtractor
 
@@ -20,6 +20,7 @@ def unpack(
     samples: data.Samples,
     config: cfg.Config,
     logger: LoggerAdapter,
+    executor: executors.Executor,
     **_,
 ) -> data.Samples:
     """Extract petagene fasterq files."""
@@ -40,6 +41,7 @@ def unpack(
                             compressed_path=compressed_path,
                             output_queue=_output_queue,
                             config=config,
+                            executor=executor,
                         )
                         if _proc:
                             _procs.append(_proc)

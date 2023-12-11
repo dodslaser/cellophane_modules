@@ -52,6 +52,7 @@ class Extractor:
         output_queue: mp.Queue,
         config: cfg.Config,
         env: dict = {},
+        executor: executors.Executor,
     ) -> tuple[UUID, mp.Process] | None:
         if [*self.extracted_paths(compressed_path)]:
             self.callback(
@@ -64,12 +65,13 @@ class Extractor:
             return None
         else:
             logger.info(f"Extracting {compressed_path.name} with {self.label}")
-            executor = executors.EXECUTOR(config)
             return executor.submit(
                 self.script,
                 name=f"unpack_{compressed_path.name}",
                 env={
                     **env,
+                    "UNPACK_INIT": config.unpack.get("init", ""),
+                    "UNPACK_EXIT": config.unpack.get("exit", ""),
                     "COMPRESSED_PATH": compressed_path,
                     "THREADS": config.unpack.threads,
                 },

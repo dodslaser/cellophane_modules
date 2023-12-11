@@ -3,6 +3,12 @@ properties:
   unpack:
     type: object
     properties:
+      init:
+        type: string
+        description: Code to run before unpacking (Bash)
+      exit:
+        type: string
+        description: Code to run after unpacking (Bash)
       threads:
         type: integer
         description: Threads for decompression

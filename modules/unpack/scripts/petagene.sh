@@ -2,7 +2,7 @@
 
 set -e -o pipefail
 
-module load petasuite
+eval ${UNPACK_INIT}
 
 echo "CMD: petasuite \
 --decompress \
@@ -13,3 +13,5 @@ petasuite \
     --decompress \
     --numthreads $THREADS \
     $COMPRESSED_PATH
+
+eval ${UNPACK_EXIT}
