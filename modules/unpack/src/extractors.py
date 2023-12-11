@@ -3,6 +3,7 @@ from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
 from typing import Callable, Iterator
+from uuid import UUID
 
 from cellophane import cfg, executors
 
