@@ -4,9 +4,10 @@ import multiprocessing as mp
 from logging import LoggerAdapter
 from pathlib import Path
 from time import sleep
-from cellophane import cfg, data, modules
-from .src.extractors import PetageneExtractor, SpringExtractor
 
+from cellophane import cfg, data, modules
+
+from .src.extractors import PetageneExtractor, SpringExtractor
 
 extractors = {
     (".fasterq"): PetageneExtractor(),
@@ -32,23 +33,19 @@ def unpack(
                     # FIXME: This will break for multi-extensions (e.g. .my.fancy.ext)
                     if compressed_path.suffix == ext:
                         samples[s_idx].files[f_idx] = None
-                        if _proc := extractor.extract(
+                        _proc, _ = extractor.extract(
                             s_idx,
                             f_idx,
                             logger=logger,
                             compressed_path=compressed_path,
                             output_queue=_output_queue,
                             config=config,
-                        ):
+                        )
+                        if _proc:
                             _procs.append(_proc)
 
-    # Avoid returning before the processes finish
-    sleep(0.1)
     while any(p.is_alive() for p in _procs) or not _output_queue.empty():
         s_idx, f_idx, extracted_path = _output_queue.get()
         samples[s_idx].files[f_idx] = extracted_path
-        # Avoid locking when the queue empties before the processes finish
-        # FIXME: Is there a better way to do this?
-        sleep(0.1)
 
     return samples

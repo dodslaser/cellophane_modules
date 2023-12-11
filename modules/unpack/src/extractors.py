@@ -1,9 +1,10 @@
 import multiprocessing as mp
+from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
-from cellophane import cfg, sge
-from functools import partial
-from typing import Iterator, Callable
+from typing import Callable, Iterator
+
+from cellophane import cfg, executors
 
 
 class Extractor:
@@ -51,7 +52,7 @@ class Extractor:
         output_queue: mp.Queue,
         config: cfg.Config,
         env: dict = {},
-    ) -> mp.Process | None:
+    ) -> tuple[UUID, mp.Process] | None:
         if [*self.extracted_paths(compressed_path)]:
             self.callback(
                 *args,
@@ -63,18 +64,17 @@ class Extractor:
             return None
         else:
             logger.info(f"Extracting {compressed_path.name} with {self.label}")
-            return sge.submit(
+            executor = executors.EXECUTOR(config)
+            return executor.submit(
                 self.script,
+                name=f"unpack_{compressed_path.name}",
                 env={
                     **env,
                     "COMPRESSED_PATH": compressed_path,
                     "THREADS": config.unpack.threads,
                 },
-                config=config,
-                slots=config.unpack.threads,
-                name=f"unpack_{compressed_path.name}",
-                cwd=compressed_path.parent,
-                check=False,
+                cpus=config.unpack.threads,
+                workdir=compressed_path.parent,
                 callback=partial(
                     self.callback,
                     *args,
