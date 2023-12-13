@@ -3,15 +3,15 @@
 import multiprocessing as mp
 from logging import LoggerAdapter
 from pathlib import Path
-from time import sleep
 
 from cellophane import cfg, data, executors, modules
+from mpire.async_result import AsyncResult
 
-from .src.extractors import PetageneExtractor, SpringExtractor
+from .src.extractors import Extractor, PetageneExtractor, SpringExtractor
 
-extractors = {
-    (".fasterq"): PetageneExtractor(),
-    (".spring"): SpringExtractor(),
+extractors: dict[str, Extractor] = {
+    ".fasterq": PetageneExtractor(),
+    ".spring": SpringExtractor(),
 }
 
 
@@ -24,30 +24,42 @@ def unpack(
     **_,
 ) -> data.Samples:
     """Extract petagene fasterq files."""
-    _procs: list[mp.Process] = []
-    _output_queue: mp.Queue = mp.Queue()
+    results: list[AsyncResult] = []
+    logger.warning([s.files for s in samples])
+    for sample, idx, path, extractor in (
+        (s, i, p, extractors[Path(p).suffix])
+        for s in samples
+        for i, p in enumerate(s.files)
+        if Path(p).suffix in extractors
+    ):
 
-    for s_idx, sample in enumerate(samples):
-        for f_idx, fastq in enumerate(sample.files):
-            if fastq and (compressed_path := Path(fastq)).exists():
-                for ext, extractor in extractors.items():
-                    # FIXME: This will break for multi-extensions (e.g. .my.fancy.ext)
-                    if compressed_path.suffix == ext:
-                        samples[s_idx].files[f_idx] = None
-                        _proc, _ = extractor.extract(
-                            s_idx,
-                            f_idx,
-                            logger=logger,
-                            compressed_path=compressed_path,
-                            output_queue=_output_queue,
-                            config=config,
-                            executor=executor,
-                        )
-                        if _proc:
-                            _procs.append(_proc)
+        def _callback(*args) -> None:
+            del args  # Unused
+            nonlocal logger
+            extracted_paths = [*extractor.extracted_paths(path)]
+            for extracted_path in extracted_paths:
+                logger.debug(f"Extracted {extracted_path.name}")
+                sample.files.insert(idx, extracted_path)
+            if path in sample.files:
+                sample.files.remove(path)
+            if not extracted_paths:
+                logger.error(f"Failed to extract {path.name}")
 
-    while any(p.is_alive() for p in _procs) or not _output_queue.empty():
-        s_idx, f_idx, extracted_path = _output_queue.get()
-        samples[s_idx].files[f_idx] = extracted_path
+        def _error_callback(*args) -> None:
+            del args  # Unused
+            if path in sample.files:
+                sample.files.remove(path)
 
+        if result := extractor.extract(
+            logger=logger,
+            compressed_path=path,
+            config=config,
+            executor=executor,
+            callback=_callback,
+            error_callback=_error_callback,
+        ):
+            results.append(result)
+
+    executor.wait()
+    logger.warning([s.files for s in samples])
     return samples

@@ -2,7 +2,11 @@
 
 set -e -o pipefail
 
+echo -e "UNPACK_INIT:\n${UNPACK_INIT}\n"
+
 eval ${UNPACK_INIT}
+
+/bin/env
 
 echo "CMD: petasuite \
 --decompress \

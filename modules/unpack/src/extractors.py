@@ -6,6 +6,7 @@ from typing import Callable, Iterator
 from uuid import UUID
 
 from cellophane import cfg, executors
+from mpire.async_result import AsyncResult
 
 
 class Extractor:
@@ -22,51 +23,23 @@ class Extractor:
     def extracted_paths(compressed_path: Path) -> Iterator[Path]:
         raise NotImplementedError
 
-    @staticmethod
-    def callback(
-        *args,
-        compressed_path: Path,
-        extracted_paths_fn: Callable,
-        output_queue: mp.Queue,
-        logger: LoggerAdapter,
-    ) -> None:
-        if extracted_paths := [*extracted_paths_fn(compressed_path)]:
-            for p in extracted_paths:
-                logger.debug(f"Extracted {p.name}")
-                output_queue.put((*args, p))
-        else:
-            logger.error(f"Failed to extract {compressed_path.name}")
-
-    @staticmethod
-    def error_callback(
-        exception: Exception,
-        compressed_path: Path,
-        logger: LoggerAdapter,
-    ) -> None:
-        logger.error(f"Failed to extract {compressed_path.name} - {exception!r}")
-
     def extract(
         self,
-        *args,
+        *,
         logger: LoggerAdapter,
         compressed_path: Path,
-        output_queue: mp.Queue,
         config: cfg.Config,
         env: dict = {},
         executor: executors.Executor,
-    ) -> tuple[UUID, mp.Process] | None:
+        callback: Callable = None,
+        error_callback: Callable = None,
+    ) -> AsyncResult | None:
         if [*self.extracted_paths(compressed_path)]:
-            self.callback(
-                *args,
-                compressed_path=compressed_path,
-                extracted_paths_fn=self.extracted_paths,
-                output_queue=output_queue,
-                logger=logger,
-            )
+            callback()
             return None
         else:
             logger.info(f"Extracting {compressed_path.name} with {self.label}")
-            return executor.submit(
+            result, _ = executor.submit(
                 self.script,
                 name=f"unpack_{compressed_path.name}",
                 env={
@@ -78,20 +51,11 @@ class Extractor:
                 },
                 cpus=config.unpack.threads,
                 workdir=compressed_path.parent,
-                callback=partial(
-                    self.callback,
-                    *args,
-                    compressed_path=compressed_path,
-                    extracted_paths_fn=self.extracted_paths,
-                    output_queue=output_queue,
-                    logger=logger,
-                ),
-                error_callback=partial(
-                    self.error_callback,
-                    compressed_path=compressed_path,
-                    logger=logger,
-                ),
+                callback=callback,
+                error_callback=error_callback,
             )
+
+            return result
 
 
 class PetageneExtractor(
