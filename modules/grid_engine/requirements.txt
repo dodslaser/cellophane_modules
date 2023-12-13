@@ -1,0 +1,1 @@
+uge-drmaa2 @ git+https://github.com/gridengine/drmaa2-python.git@v8.7.4

@@ -13,7 +13,7 @@ jobs:
   deploy:
     strategy:
       matrix:
-        module: [hcp, slims, unpack, nextflow, rsync, mail]
+        module: [hcp, slims, unpack, nextflow, rsync, mail, grid_engine]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
