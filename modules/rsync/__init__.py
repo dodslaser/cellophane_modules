@@ -5,7 +5,7 @@ from itertools import groupby
 from logging import LoggerAdapter
 from pathlib import Path
 
-from cellophane import cfg, data, modules, sge
+from cellophane import cfg, data, executors, modules
 from humanfriendly import parse_size
 
 
@@ -22,22 +22,13 @@ def _sync_callback(
                 logger.warning(f"{dest} is missing")
 
 
-def _sync_error_callback(
-    exception: Exception,
-    logger: LoggerAdapter,
-    outputs: list[data.Output],
-):
-    logger.error(
-        f"Sync failed for {sum(len(o.src) for o in outputs)} outputs: {exception!r}"
-    )
-
-
 @modules.post_hook(label="Sync Output", condition="complete")
 def rsync_results(
     samples: data.Samples,
     logger: LoggerAdapter,
     config: cfg.Config,
     workdir: Path,
+    executor: executors.Executor,
     **_,
 ) -> None:
     if "rsync" not in config:
@@ -71,7 +62,6 @@ def rsync_results(
         else:
             _small_files.append(output)
 
-    _procs: list[mp.Process] = []
     for tag, label, category in (
         (
             "large",
@@ -102,7 +92,7 @@ def rsync_results(
             logger.debug(f"Manifest: {manifest_path}")
             logger.debug(manifest_path.read_text(encoding="utf-8"))
 
-            _proc = sge.submit(
+            executor.submit(
                 str(Path(__file__).parent / "scripts" / "rsync.sh"),
                 config=config,
                 name="rsync",
@@ -113,15 +103,7 @@ def rsync_results(
                     logger=logger,
                     outputs=category,
                 ),
-                error_callback=partial(
-                    _sync_error_callback,
-                    logger=logger,
-                    outputs=category,
-                ),
             )
-            _procs.append(_proc)
 
-    for proc in _procs:
-        proc.join()
-
+    executor.wait()
     logger.info("Finished syncing output")

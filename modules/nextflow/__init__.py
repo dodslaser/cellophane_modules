@@ -1,10 +1,11 @@
 """Module for fetching files from HCP."""
 
+import multiprocessing as mp
 from pathlib import Path
 from typing import Mapping
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from cellophane import cfg, sge, data
+from cellophane import cfg, data, executors
 
 
 class NextflowSamples(data.Samples):
@@ -44,8 +45,9 @@ def nextflow(
     ansi_log: bool = False,
     resume: bool = False,
     name: str = "nextflow",
+    executor: executors.Executor,
     **kwargs,
-):
+) -> tuple[mp.Process, UUID]:
     """Submit a Nextflow job to SGE."""
     (config.logdir / "nextflow").mkdir(exist_ok=True)
 
@@ -54,7 +56,7 @@ def nextflow(
 
     uuid = uuid4()
 
-    sge.submit(
+    return executor.submit(
         str(Path(__file__).parent / "scripts" / "nextflow.sh"),
         f"-log {config.logdir / 'nextflow' / f'{name}.{uuid.hex}.log'}",
         (
@@ -81,9 +83,8 @@ def nextflow(
             **{k: v for m in config.nextflow.env for k, v in m.items()},
             **env,
         },
-        config=config,
         uuid=uuid,
         name=name,
-        slots=config.nextflow.threads,
+        cpus=config.nextflow.threads,
         **kwargs,
     )
