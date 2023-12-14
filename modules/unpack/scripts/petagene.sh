@@ -11,6 +11,7 @@ eval ${UNPACK_INIT}
 echo "CMD: petasuite \
 --decompress \
 --numthreads $THREADS \
+--validate off \ 
 $COMPRESSED_PATH"
 
 petasuite \
