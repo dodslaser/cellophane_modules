@@ -36,7 +36,7 @@ class GridEngineExecutor(executors.Executor, name="grid_engine"):
         del kwargs  # Unused
 
         _logdir = self.config.logdir / "grid_engine" / uuid.hex
-        _logdir.mkdir(exist_ok=True)
+        _logdir.mkdir(exist_ok=True, parents=True)
 
         try:
             session = drmaa2.JobSession(f"{name}_{uuid.hex}")
