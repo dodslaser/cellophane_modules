@@ -46,11 +46,11 @@ class GridEngineExecutor(executors.Executor, name="grid_engine"):
                     "args": args[1:],
                     "min_slots": cpus,
                     "implementation_specific": {
-                        "uge_jt_pe": self.config.sge.pe,
+                        "uge_jt_pe": self.config.grid_engine.pe,
                         "uge_jt_native": (
                             "-l excl=1 "
                             "-S /bin/bash "
-                            f"-notify -q {self.config.sge.queue} "
+                            f"-notify -q {self.config.grid_engine.queue} "
                             f"{'-V' if os_env else ''}"
                         ),
                     },
