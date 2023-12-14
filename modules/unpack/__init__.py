@@ -57,7 +57,6 @@ def unpack(
 ) -> data.Samples:
     """Extract petagene fasterq files."""
     results: list[AsyncResult] = []
-    logger.warning([s.files for s in samples])
     for sample, idx, path, extractor in (
         (s, i, p, extractors[Path(p).suffix])
         for s in samples
