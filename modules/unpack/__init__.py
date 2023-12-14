@@ -4,6 +4,7 @@ import multiprocessing as mp
 from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
+from time import sleep
 
 from cellophane import cfg, data, executors, modules
 from mpire.async_result import AsyncResult
@@ -19,20 +20,28 @@ extractors: dict[str, Extractor] = {
 def _callback(
     *args,
     extractor: Extractor,
+    timeout: int,
     sample: data.Sample,
     idx: int,
     logger: LoggerAdapter,
     path: Path,
 ) -> None:
     del args  # Unused
-    extracted_paths = [*extractor.extracted_paths(path)]
+
+    logger.debug(f"Waiting up to {timeout} seconds for {path.name} to be available")
+    while not (extracted_paths := [*extractor.extracted_paths(path)]) and timeout:
+        sleep(1)
+        timeout -= 1
+
+    if not extracted_paths:
+        logger.error(f"Failed to extract {path.name}")
+
     for extracted_path in extracted_paths:
         logger.debug(f"Extracted {extracted_path.name}")
         sample.files.insert(idx, extracted_path)
+
     if path in sample.files:
         sample.files.remove(path)
-    if not extracted_paths:
-        logger.error(f"Failed to extract {path.name}")
 
 
 def _error_callback(
@@ -71,6 +80,7 @@ def unpack(
             callback=partial(
                 _callback,
                 extractor=extractor,
+                timeout=config.unpack.timeout,
                 sample=sample,
                 idx=idx,
                 logger=logger,

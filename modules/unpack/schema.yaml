@@ -13,3 +13,7 @@ properties:
         type: integer
         description: Threads for decompression
         default: 40
+      timeout:
+        type: integer
+        description: Timeout (in seconds) to wait for unpacked file to become available
+        default: 60
