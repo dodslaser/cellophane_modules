@@ -28,7 +28,7 @@ def _callback(
 ) -> None:
     del args  # Unused
 
-    logger.debug(f"Waiting up to {timeout} seconds for {path.name} to be available")
+    logger.debug(f"Waiting up to {timeout} seconds for files to become available")
     while not (extracted_paths := [*extractor.extracted_paths(path)]) and timeout:
         sleep(1)
         timeout -= 1
