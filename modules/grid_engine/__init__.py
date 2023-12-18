@@ -73,19 +73,11 @@ class GridEngineExecutor(executors.Executor, name="grid_engine"):
                 f.write(str(e))
             exit(1)
 
-        else:
-            state = None
-            while state not in (
-                drmaa2.JobState.DONE,
-                drmaa2.JobState.FAILED,
-            ):
-                state, _ = job.get_state()
-                time.sleep(1)
-
-            job_info = job.get_info()
-            session.close()
-            session.destroy()
-            exit(job_info.exit_status)
+        session.wait_all_terminated([job])
+        job_info = job.get_info()
+        session.close()
+        session.destroy()
+        exit(job_info.exit_status)
 
     def terminate_hook(self, uuid: UUID, logger: logging.LoggerAdapter) -> int:
         if uuid in self.ge_jobs:
