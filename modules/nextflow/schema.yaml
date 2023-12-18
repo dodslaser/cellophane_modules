@@ -13,18 +13,17 @@ properties:
       profile:
         type: string
         description: Nextflow profile
+      workdir:
+        type: path
+        description: Nextflow workdir
       ansi_log:
         type: boolean
         default: false
         description: Enable ANSI log
-      nf_module:
+      init:
         type: string
-        description: Nextflow module
-        default: nextflow
-      java_module:
-        type: string
-        description: Java module
-        default: java
+        description: Code to run before running Nextflow (Bash)
+        default: ""
       env:
         type: mapping
         description: Environment variables that will be passed to the nextflow process

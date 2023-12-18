@@ -9,6 +9,7 @@ from cellophane import cfg, data, executors
 
 
 class NextflowSamples(data.Samples):
+    """Samples with Nextflow-specific methods."""
     def nfcore_samplesheet(self, *_, location: str | Path, **kwargs) -> Path:
         """Write a Nextflow samplesheet"""
         Path(location).mkdir(parents=True, exist_ok=True)
@@ -39,49 +40,43 @@ def nextflow(
     main: Path,
     *args,
     config: cfg.Config,
-    env: dict[str, str] = {},
-    workdir: Path | None = None,
-    nf_config: Path | None = None,
+    executor: executors.Executor,
+    workdir: Path,
+    env: dict[str, str] | None = None,
+    nxf_config: Path | None = None,
+    nxf_work: Path | None = None,
+    nxf_profile: str | None = None,
     ansi_log: bool = False,
     resume: bool = False,
     name: str = "nextflow",
-    executor: executors.Executor,
-    **kwargs,
+    **kwargs
 ) -> tuple[mp.Process, UUID]:
     """Submit a Nextflow job to SGE."""
-    (config.logdir / "nextflow").mkdir(exist_ok=True)
-
-    if "workdir" in config.nextflow:
-        config.nextflow.workdir.mkdir(parents=True, exist_ok=True)
 
     uuid = uuid4()
+    _nxf_log = config.logdir / "nextflow" / f"{name}.{uuid.hex}.log"
+    _nxf_config = nxf_config or config.nextflow.get("config")
+    _nxf_work = nxf_work or config.nextflow.get("workdir") or workdir / "nxf_work"
+    _nxf_profile = nxf_profile or config.nextflow.get("profile")
+
+    _nxf_log.parent.mkdir(parents=True, exist_ok=True)
+    _nxf_work.mkdir(parents=True, exist_ok=True)
 
     return executor.submit(
         str(Path(__file__).parent / "scripts" / "nextflow.sh"),
-        f"-log {config.logdir / 'nextflow' / f'{name}.{uuid.hex}.log'}",
-        (
-            f"-config {nf_config}"
-            if nf_config
-            else f"-config {c}"
-            if (c := config.nextflow.get("config", None))
-            else ""
-        ),
+        f"-log {_nxf_log}",
+        (f"-config {_nxf_config}" if _nxf_config else ""),
         f"run {main}",
         "-ansi-log false" if not ansi_log or config.nextflow.ansi_log else "",
-        f"-work-dir {workdir}" if workdir else "",
+        f"-work-dir {_nxf_work}",
         "-resume" if resume else "",
         f"-with-report {config.logdir / 'nextflow' / f'{name}.{uuid.hex}.report.html'}",
-        (
-            f"-profile {p}"
-            if (p := config.nextflow.get("profile", None))
-            else ""
-        ),
+        (f"-profile {_nxf_profile}" if _nxf_profile else ""),
         *args,
         env={
-            "_NXF_MODULE": config.nextflow.nf_module,
-            "_JAVA_MODULE": config.nextflow.java_module,
+            "_NXF_INIT": config.nextflow.init,
             **{k: v for m in config.nextflow.env for k, v in m.items()},
-            **env,
+            **(env or {}),
         },
         uuid=uuid,
         name=name,
