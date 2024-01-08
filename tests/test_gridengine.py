@@ -15,6 +15,7 @@ from uuid import uuid4
 
 import drmaa2
 from attrs import define
+from mpire import WorkerPool
 from pytest import FixtureLookupError, fixture, raises
 from pytest_mock import MockerFixture
 
@@ -42,6 +43,7 @@ def job_session(request):
         close = MagicMock()
         destroy = MagicMock()
         run_job = MagicMock(return_value=JobMock())
+        wait_all_terminated = MagicMock()
 
     return JobSessionMock()
 
@@ -55,10 +57,13 @@ class Test_GridEngineExecutor:
         )
 
         config = MagicMock(workdir=tmp_path)
-        executor = GridEngineExecutor(config, log_queue=mp.Queue())
         logger = logging.getLogger()
         
-        with raises(SystemExit) as exc:
+        with (
+            raises(SystemExit),
+            WorkerPool(1) as pool,
+        ):
+            executor = GridEngineExecutor(config, pool, log_queue=mp.Queue())
             executor.target(
                 "SCRIPT",
                 "ARG1",
