@@ -3,10 +3,10 @@
   structure:
     modules:
       fail_samples.py: |
-        from cellophane import modules, data
+        from cellophane import runner, output
 
-        @modules.runner()
-        @data.output("output_{sample.id}")
+        @runner()
+        @output("output_{sample.id}")
         def _runner(samples, workdir, logger, **kwargs):
             logger.info("Running rsync test")
             for s in samples:
@@ -35,7 +35,7 @@
     ../cellophane_modules/rsync: modules/rsync
 
   mocks:
-    _cellophane_module_rsync.sge.submit: ~
+    _cellophane_module_rsync.Executor.submit: ~
 
   args:
     --samples_file: samples.yaml

@@ -1,17 +1,16 @@
 import multiprocessing as mp
 from copy import copy
 from functools import partial
-from itertools import groupby
 from logging import LoggerAdapter
 from pathlib import Path
 
-from cellophane import cfg, data, executors, modules
+from cellophane import Config, Executor, Output, Samples, post_hook
 from humanfriendly import parse_size
 
 
 def _sync_callback(
     logger: LoggerAdapter,
-    outputs: list[data.Output],
+    outputs: list[Output],
 ):
     for o in outputs:
         for s in o.src:
@@ -22,13 +21,13 @@ def _sync_callback(
                 logger.warning(f"{dest} is missing")
 
 
-@modules.post_hook(label="Sync Output", condition="complete")
+@post_hook(label="Sync Output", condition="complete")
 def rsync_results(
-    samples: data.Samples,
+    samples: Samples,
     logger: LoggerAdapter,
-    config: cfg.Config,
+    config: Config,
     workdir: Path,
-    executor: executors.Executor,
+    executor: Executor,
     **_,
 ) -> None:
     if "rsync" not in config:
@@ -41,9 +40,9 @@ def rsync_results(
         logger.info(f"Syncing output to {config.resultdir}")
 
     # Split outputs into large files, small files, and directories
-    _large_files: list[data.Output] = []
-    _small_files: list[data.Output] = []
-    _directories: list[data.Output] = []
+    _large_files: list[Output] = []
+    _small_files: list[Output] = []
+    _directories: list[Output] = []
     _outputs = copy(samples.output)
     for output in _outputs:
         if not output.src.exists():

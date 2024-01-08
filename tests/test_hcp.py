@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from cellophane import data
+from cellophane import Sample
 from pytest import fixture, mark, param, raises
 from pytest_mock import MockerFixture
 
@@ -12,7 +12,7 @@ INTEGRATION = Path(__file__).parent / "integration"
 
 @fixture(scope="class")
 def hcp_sample():
-    return data.Sample.with_mixins([hcp.HCPSample])
+    return Sample.with_mixins([hcp.HCPSample])
 
 
 class Test__fetch:

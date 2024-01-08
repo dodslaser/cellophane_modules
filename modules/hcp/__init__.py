@@ -1,17 +1,17 @@
 """Module for fetching files from HCP."""
 
+import logging
+import multiprocessing as mp
 import sys
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from logging import LoggerAdapter
 from pathlib import Path
 
 from attrs import Attribute, define, field
-from cellophane import cfg, data, modules, logs
-from NGPIris.hcp import HCPManager
+from cellophane import Config, Sample, Samples, logs, pre_hook
 from mpire import WorkerPool
 from mpire.async_result import AsyncResult
-import logging
-import multiprocessing as mp
+from NGPIris.hcp import HCPManager
 
 
 def _fetch(
@@ -65,7 +65,7 @@ def _error_callback(sample, logger):
 
 
 @define(slots=False, init=False)
-class HCPSample(data.Sample):
+class HCPSample(Sample):
     """Sample with HCP backup."""
 
     hcp_remote_keys: set[str] | None = field(
@@ -91,19 +91,19 @@ class HCPSample(data.Sample):
             )
 
 
-@data.Sample.merge.register("backup")
+@Sample.merge.register("backup")
 def _(this, that):
     return this | that
 
 
-@modules.pre_hook(label="HCP", after=["slims_fetch"])
+@pre_hook(label="HCP", after=["slims_fetch"])
 def hcp_fetch(
-    samples: data.Samples,
-    config: cfg.Config,
+    samples: Samples,
+    config: Config,
     logger: LoggerAdapter,
     log_queue: mp.Queue,
     **_,
-) -> data.Samples:
+) -> Samples:
     """Fetch files from HCP."""
     if any(k not in config.get("hcp", {}) for k in ["credentials", "fastq_temp"]):
         logger.warning("HCP not configured")

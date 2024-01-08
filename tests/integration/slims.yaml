@@ -187,14 +187,14 @@
   structure:
     modules:
       dummy.py: |
-        from cellophane import modules, data
+        from cellophane import runner, Sample
         from attrs import define
 
         @define(slots=False)
-        class DummySample(data.Sample):
+        class DummySample(Sample):
           field: str = None
 
-        @modules.runner()
+        @runner()
         def dummy(samples, logger, **kwargs):
           for sample in samples:
             logger.debug(f"{sample.meta.key=}")

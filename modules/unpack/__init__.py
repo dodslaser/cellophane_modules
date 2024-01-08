@@ -6,7 +6,7 @@ from logging import LoggerAdapter
 from pathlib import Path
 from time import sleep
 
-from cellophane import cfg, data, executors, modules
+from cellophane import Config, Executor, Sample, Samples, pre_hook
 from mpire.async_result import AsyncResult
 
 from .src.extractors import Extractor, PetageneExtractor, SpringExtractor
@@ -21,7 +21,7 @@ def _callback(
     *args,
     extractor: Extractor,
     timeout: int,
-    sample: data.Sample,
+    sample: Sample,
     idx: int,
     logger: LoggerAdapter,
     path: Path,
@@ -46,7 +46,7 @@ def _callback(
 
 def _error_callback(
     *args,
-    sample: data.Sample,
+    sample: Sample,
     logger: LoggerAdapter,
     path: Path,
 ) -> None:
@@ -56,14 +56,14 @@ def _error_callback(
         sample.files.remove(path)
 
 
-@modules.pre_hook(label="unpack", after=["hcp_fetch"])
+@pre_hook(label="unpack", after=["hcp_fetch"])
 def unpack(
-    samples: data.Samples,
-    config: cfg.Config,
+    samples: Samples,
+    config: Config,
     logger: LoggerAdapter,
-    executor: executors.Executor,
+    executor: Executor,
     **_,
-) -> data.Samples:
+) -> Samples:
     """Extract petagene fasterq files."""
     results: list[AsyncResult] = []
     for sample, idx, path, extractor in (
