@@ -1,15 +1,16 @@
 import logging
+import time
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import drmaa2
 from attrs import define, field
-from cellophane import Executor
+from cellophane import executors
 
 
 @define(slots=False)
-class GridEngineExecutor(Executor, name="grid_engine"):
+class GridEngineExecutor(executors.Executor, name="grid_engine"):
     """Executor using multiprocessing."""
 
     ge_jobs: dict[

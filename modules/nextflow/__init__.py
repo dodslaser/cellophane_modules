@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import Mapping
 from uuid import UUID, uuid4
 
-from cellophane import Config, Executor, Samples
+from cellophane import cfg, data, executors
 
 
-class NextflowSamples(Samples):
+class NextflowSamples(data.Samples):
     """Samples with Nextflow-specific methods."""
     def nfcore_samplesheet(self, *_, location: str | Path, **kwargs) -> Path:
         """Write a Nextflow samplesheet"""
@@ -39,8 +39,8 @@ class NextflowSamples(Samples):
 def nextflow(
     main: Path,
     *args,
-    config: Config,
-    executor: Executor,
+    config: cfg.Config,
+    executor: executors.Executor,
     workdir: Path,
     env: dict[str, str] | None = None,
     nxf_config: Path | None = None,

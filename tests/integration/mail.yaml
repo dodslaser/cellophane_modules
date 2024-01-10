@@ -3,9 +3,9 @@
   structure:
     modules:
       fail_samples.py: |
-        from cellophane import runner
+        from cellophane import modules
 
-        @runner()
+        @modules.runner()
         def _runner(samples, workdir, **kwargs):
             missing_attachment = workdir / f"attachment_missing"
             samples_attachment = workdir / f"attachment_samples"

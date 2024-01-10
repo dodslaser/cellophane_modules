@@ -7,14 +7,14 @@ from typing import Literal
 
 from attrs import define, field, fields_dict
 from attrs.setters import validate
-from cellophane import Config, Sample, Samples, post_hook, pre_hook, util
+from cellophane import cfg, data, modules, util
 from slims.slims import Record, Slims
 
 from .src.util import get_field, get_records
 
 
 @define(slots=False, init=False)
-class SlimsSample(Sample):
+class SlimsSample(data.Sample):
     """A sample container with SLIMS integration"""
 
     derived: list[tuple[Record, dict]] | None = field(default=None, on_setattr=validate)
@@ -25,7 +25,7 @@ class SlimsSample(Sample):
     _connection: Slims | None = field(default=None, init=False)
 
     @classmethod
-    def from_record(cls, record: Record, config: Config, **kwargs):
+    def from_record(cls, record: Record, config: cfg.Config, **kwargs):
         """Create a sample from a SLIMS fastq record"""
         _sample = cls(
             id=record.cntn_id.value,
@@ -57,7 +57,7 @@ class SlimsSample(Sample):
 
     def update_derived(
         self,
-        config: Config,
+        config: cfg.Config,
     ):
         """Update/add derived records for the sample"""
         if not self.derived:
@@ -137,17 +137,17 @@ class SlimsSample(Sample):
         return super().__reduce__()
 
 
-@Sample.merge.register("record")
+@data.Sample.merge.register("record")
 def _(this, _):
     return this
 
 
-@Sample.merge.register("_connection")
+@data.Sample.merge.register("_connection")
 def _(*_):
     return None
 
 
-@Sample.merge.register("state")
+@data.Sample.merge.register("state")
 def _(this, that):
     if any(s != "complete" for s in (this, that)):
         return "error"
@@ -155,19 +155,19 @@ def _(this, that):
         return "complete"
 
 
-@Sample.merge.register("derived")
+@data.Sample.merge.register("derived")
 def _(this, that):
     return this + that
 
 
-class SlimsSamples(Samples):
+class SlimsSamples(data.Samples):
     """A list of sample containers with SLIMS integration"""
 
     @classmethod
     def from_records(
         cls,
         records: list[Record],
-        config: Config,
+        config: cfg.Config,
     ) -> "SlimsSamples":
         """Get samples from SLIMS records"""
         return cls(
@@ -181,7 +181,7 @@ class SlimsSamples(Samples):
 
     def update_derived(
         self,
-        config: Config,
+        config: cfg.Config,
     ) -> None:
         """Update derived records in SLIMS"""
         for sample in self:
@@ -193,10 +193,10 @@ class SlimsSamples(Samples):
             sample.state = value
 
 
-@pre_hook(label="SLIMS Fetch", before=["hcp_fetch", "slims_bioinformatics"])
+@modules.pre_hook(label="SLIMS Fetch", before=["hcp_fetch", "slims_bioinformatics"])
 def slims_fetch(
-    samples: Samples,
-    config: Config,
+    samples: data.Samples,
+    config: cfg.Config,
     logger: LoggerAdapter,
     **_,
 ) -> SlimsSamples | None:
@@ -296,10 +296,10 @@ def slims_fetch(
         return samples.from_records(records, config)
 
 
-@pre_hook(label="SLIMS Derive", after=["slims_fetch"])
+@modules.pre_hook(label="SLIMS Derive", after=["slims_fetch"])
 def slims_derive(
     samples: SlimsSamples,
-    config: Config,
+    config: cfg.Config,
     logger: LoggerAdapter,
     **_,
 ) -> SlimsSamples:
@@ -315,10 +315,10 @@ def slims_derive(
     return samples
 
 
-@pre_hook(label="SLIMS Mark Running", after="all")
+@modules.pre_hook(label="SLIMS Mark Running", after="all")
 def slims_running(
     samples: SlimsSamples,
-    config: Config,
+    config: cfg.Config,
     logger: LoggerAdapter,
     **_,
 ) -> SlimsSamples:
@@ -335,9 +335,9 @@ def slims_running(
     return samples
 
 
-@post_hook(label="SLIMS Update Derived")
+@modules.post_hook(label="SLIMS Update Derived")
 def slims_update(
-    config: Config,
+    config: cfg.Config,
     samples: SlimsSamples,
     logger: LoggerAdapter,
     **_,
