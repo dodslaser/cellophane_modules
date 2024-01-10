@@ -1,11 +1,11 @@
 """Module for fetching files from HCP."""
 
-import multiprocessing as mp
 from pathlib import Path
 from typing import Mapping
 from uuid import UUID, uuid4
 
 from cellophane import cfg, data, executors
+from mpire.async_result import AsyncResult
 
 
 class NextflowSamples(data.Samples):
@@ -50,7 +50,7 @@ def nextflow(
     resume: bool = False,
     name: str = "nextflow",
     **kwargs
-) -> tuple[mp.Process, UUID]:
+) -> tuple[AsyncResult, UUID]:
     """Submit a Nextflow job to SGE."""
 
     uuid = uuid4()
