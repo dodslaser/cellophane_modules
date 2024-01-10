@@ -62,14 +62,14 @@ class GridEngineExecutor(executors.Executor, name="grid_engine"):
             )
             logger.debug(f"Grid Engine job started ({name=}, {uuid=}, {job.id=})")
             self.ge_jobs[uuid] = (session, job)
-        except Exception as e:
+        except Exception as exception:  # pylint: disable=broad-except
             logger.error(f"Failed to submit job to Grid Engine ({name=}, {uuid=})")
             with open(
                 _logdir / f"{name}.err",
                 mode="w",
                 encoding="utf-8",
             ) as f:
-                f.write(str(e))
+                f.write(str(exception))
             exit(1)
 
         session.wait_all_terminated([job])
