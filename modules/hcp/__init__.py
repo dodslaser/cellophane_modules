@@ -1,17 +1,16 @@
 """Module for fetching files from HCP."""
 
+import logging
+import multiprocessing as mp
 import sys
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from logging import LoggerAdapter
 from pathlib import Path
 
 from attrs import Attribute, define, field
-from cellophane import cfg, data, modules, logs
-from NGPIris.hcp import HCPManager
+from cellophane import cfg, data, logs, modules
 from mpire import WorkerPool
 from mpire.async_result import AsyncResult
-import logging
-import multiprocessing as mp
+from NGPIris.hcp import HCPManager
 
 
 def _fetch(
