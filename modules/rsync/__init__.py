@@ -94,9 +94,7 @@ def rsync_results(
 
             executor.submit(
                 str(Path(__file__).parent / "scripts" / "rsync.sh"),
-                config=config,
                 name="rsync",
-                check=False,
                 env={"MANIFEST": str(manifest_path)},
                 callback=partial(
                     _sync_callback,
