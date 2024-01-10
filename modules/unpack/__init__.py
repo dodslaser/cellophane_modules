@@ -1,6 +1,5 @@
 """Module for fetching files from HCP."""
 
-import multiprocessing as mp
 from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
