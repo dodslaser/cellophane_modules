@@ -17,7 +17,8 @@ extractors: dict[str, Extractor] = {
 
 
 def _callback(
-    *args,
+    result: AsyncResult,
+    /,
     extractor: Extractor,
     timeout: int,
     sample: data.Sample,
@@ -25,7 +26,7 @@ def _callback(
     logger: LoggerAdapter,
     path: Path,
 ) -> None:
-    del args  # Unused
+    del result  # Unused
 
     logger.debug(f"Waiting up to {timeout} seconds for files to become available")
     while not (extracted_paths := [*extractor.extracted_paths(path)]) and timeout:

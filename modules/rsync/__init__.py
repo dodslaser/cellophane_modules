@@ -5,10 +5,11 @@ from pathlib import Path
 
 from cellophane import cfg, data, executors, modules
 from humanfriendly import parse_size
+from mpire.async_result import AsyncResult
 
 
 def _sync_callback(
-    result,
+    result: AsyncResult,
     /,
     logger: LoggerAdapter,
     outputs: list[data.Output],
