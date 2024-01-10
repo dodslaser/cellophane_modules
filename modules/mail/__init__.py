@@ -11,13 +11,13 @@ from cellophane import cfg, data, modules
 from jinja2 import Environment
 
 
-@define
+@define(slots=False)
 class MailSample(data.Sample):
     """A sample with mail attachments"""
     mail_attachments: set[Path] = field(factory=set)
 
 
-@define
+@define(slots=False)
 class MailSamples(data.Samples[MailSample]):
     """A collection of samples with mail attachments"""
     _mail_attachments: set[Path] = field(factory=set, init=False)

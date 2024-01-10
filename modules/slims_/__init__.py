@@ -13,7 +13,7 @@ from slims.slims import Record, Slims
 from .src.util import get_field, get_records
 
 
-@define(slots=False, init=False)
+@define(slots=False)
 class SlimsSample(data.Sample):
     """A sample container with SLIMS integration"""
 

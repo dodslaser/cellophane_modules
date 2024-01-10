@@ -63,7 +63,7 @@ def _error_callback(sample, logger):
     return inner
 
 
-@define(slots=False, init=False)
+@define(slots=False)
 class HCPSample(data.Sample):
     """Sample with HCP backup."""
 
@@ -90,7 +90,7 @@ class HCPSample(data.Sample):
             )
 
 
-@data.Sample.merge.register("backup")
+@data.Sample.merge.register("hcp_remote_keys")
 def _(this, that):
     return this | that
 
