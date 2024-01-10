@@ -75,7 +75,7 @@ def nextflow(
         *args,
         env={
             "_NXF_INIT": config.nextflow.init,
-            **{k: v for m in config.nextflow.env for k, v in m.items()},
+            **config.nextflow.env,
             **(env or {}),
         },
         uuid=uuid,
