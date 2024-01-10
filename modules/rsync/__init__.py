@@ -8,16 +8,17 @@ from humanfriendly import parse_size
 
 
 def _sync_callback(
+    result,
+    /,
     logger: LoggerAdapter,
     outputs: list[data.Output],
 ):
+    del result  # Unused
     for o in outputs:
-        for s in o.src:
-            dest = o.dest_dir / s.name
-            if dest.exists():
-                logger.debug(f"Copied {dest}")
-            else:
-                logger.warning(f"{dest} is missing")
+        if o.dst.exists():
+            logger.debug(f"Copied {o.src} -> {o.dst}")
+        else:
+            logger.warning(f"{o.dst} is missing")
 
 
 @modules.post_hook(label="Sync Output", condition="complete")
