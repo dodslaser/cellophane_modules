@@ -7,6 +7,7 @@ from logging import LoggerAdapter
 from pathlib import Path
 
 from attrs import Attribute, define, field
+from attrs.setters import convert
 from cellophane import cfg, data, logs, modules
 from mpire import WorkerPool
 from mpire.async_result import AsyncResult
@@ -71,6 +72,7 @@ class HCPSample(data.Sample):
         default=None,
         kw_only=True,
         converter=lambda value: None if value is None else set(value),
+        on_setattr=convert,
     )
 
     @hcp_remote_keys.validator
@@ -91,8 +93,9 @@ class HCPSample(data.Sample):
 
 
 @data.Sample.merge.register("hcp_remote_keys")
-def _(this, that):
-    return this | that
+def _(this, that) -> set[str] | None:
+    if not this or that is None:
+        return (this or set()) | (that or set())
 
 
 @modules.pre_hook(label="HCP", after=["slims_fetch"])

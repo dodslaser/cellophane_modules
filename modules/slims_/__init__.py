@@ -157,7 +157,8 @@ def _(this, that):
 
 @data.Sample.merge.register("derived")
 def _(this, that):
-    return this + that
+    if not this or that is None:
+        return (this or []) + (that or [])
 
 
 class SlimsSamples(data.Samples):
