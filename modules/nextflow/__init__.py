@@ -49,6 +49,7 @@ def nextflow(
     ansi_log: bool = False,
     resume: bool = False,
     name: str = "nextflow",
+    check: bool = True,
     **kwargs
 ) -> tuple[AsyncResult, UUID]:
     """Submit a Nextflow job to SGE."""
@@ -62,7 +63,7 @@ def nextflow(
     _nxf_log.parent.mkdir(parents=True, exist_ok=True)
     _nxf_work.mkdir(parents=True, exist_ok=True)
 
-    return executor.submit(
+    result, uuid = executor.submit(
         str(Path(__file__).parent / "scripts" / "nextflow.sh"),
         f"-log {_nxf_log}",
         (f"-config {_nxf_config}" if _nxf_config else ""),
@@ -83,3 +84,8 @@ def nextflow(
         cpus=config.nextflow.threads,
         **kwargs,
     )
+
+    if check:
+        result.get()
+    
+    return result, uuid
