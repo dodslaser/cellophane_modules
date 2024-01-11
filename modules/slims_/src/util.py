@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime, timedelta
-from functools import reduce
+from functools import cache, reduce
 from json import loads
 from typing import Any
 
@@ -23,7 +23,6 @@ from slims.criteria import (
     starts_with,
 )
 from slims.slims import Record, Slims
-from functools import cache
 
 
 @cache
