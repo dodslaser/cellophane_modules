@@ -1,5 +1,6 @@
 """Module for fetching files from HCP."""
 
+from copy import copy
 from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
@@ -28,10 +29,14 @@ def _callback(
 ) -> None:
     del result  # Unused
 
-    logger.debug(f"Waiting up to {timeout} seconds for files to become available")
-    while not (extracted_paths := [*extractor.extracted_paths(path)]) and timeout:
+    if not [*extractor.extracted_paths(path)]:
+        logger.debug(f"Waiting up to {timeout} seconds for files to become available")
+    _timeout = copy(timeout)
+    while (
+        not (extracted_paths := [*extractor.extracted_paths(path)])
+        and (_timeout := _timeout - 1) > 0
+    ):
         sleep(1)
-        timeout -= 1
 
     if not extracted_paths:
         logger.error(f"Failed to extract {path.name}")
