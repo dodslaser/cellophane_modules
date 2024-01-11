@@ -107,3 +107,4 @@ def rsync_results(
 
     executor.wait()
     logger.info("Finished syncing output")
+    return samples
