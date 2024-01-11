@@ -14,3 +14,7 @@ properties:
         type: string
         description: Files larger than this will be copied in a separate job (eg. 100M, 1 GB)
         default: "100M"
+      timeout:
+        type: integer
+        description: Timeout (in seconds) for files to be available after rsync is complete
+        default: 30

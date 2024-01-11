@@ -2,6 +2,7 @@ from copy import copy
 from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
+from time import sleep
 
 from cellophane import cfg, data, executors, modules
 from humanfriendly import parse_size
@@ -12,14 +13,20 @@ def _sync_callback(
     result: AsyncResult,
     /,
     logger: LoggerAdapter,
-    outputs: list[data.Output],
+    manifest: list[tuple[str, str]],
+    timeout: int,
 ):
     del result  # Unused
-    for o in outputs:
-        if o.dst.exists():
-            logger.debug(f"Copied {o.src} -> {o.dst}")
+    for src, dst in manifest:
+        if not Path(dst).exists():
+            logger.debug(f"Waiting {_timeout} seconds for {dst} to become available")
+        _timeout = copy(timeout)
+        while not (available := Path(dst).exists()) and (_timeout := _timeout - 1) > 0:
+            sleep(1)
+        if available:
+            logger.debug(f"Copied {src} -> {dst}")
         else:
-            logger.warning(f"{o.dst} is missing")
+            logger.warning(f"{dst} is missing")
 
 
 @modules.post_hook(label="Sync Output", condition="complete")
@@ -94,6 +101,7 @@ def rsync_results(
                     _sync_callback,
                     logger=logger,
                     manifest=manifest,
+                    timeout=config.rsync.timeout,
                 ),
             )
 
