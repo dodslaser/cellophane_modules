@@ -41,57 +41,51 @@ def rsync_results(
         logger.info(f"Syncing output to {config.resultdir}")
 
     # Split outputs into large files, small files, and directories
-    _large_files: list[data.Output] = []
-    _small_files: list[data.Output] = []
-    _directories: list[data.Output] = []
-    _outputs = copy(samples.output)
-    for output in _outputs:
+    labels: dict[str, str] = {
+        "large": f"large files (>{config.rsync.large_file_threshold})",
+        "small": f"small files (<{config.rsync.large_file_threshold})",
+        "dir": "directories",
+    }
+    manifests: dict[str, list[tuple[str, str]]] = {
+        "large": [],
+        "small": [],
+        "dir": [],
+    }
+
+    for output in samples.output.copy():
         if not output.src.exists():
             logger.warning(f"{output.src} does not exist")
             samples.output.remove(output)
-        elif [*output.dst.parent.glob("*")] and not config.rsync.overwrite:
-            logger.warning(f"{output.dst} is not empty")
+            continue
+        elif output.dst.exists() and not config.rsync.overwrite:
+            logger.warning(f"{output.dst} already exists")
             samples.output.remove(output)
+            continue
         elif not output.dst.is_relative_to(config.resultdir):
             logger.warning(f"{output.dst} is outside {config.rsync.base}")
             samples.output.remove(output)
-        elif output.src.is_dir():
-            _directories.append(output)
+            continue
+
+        output.dst.parent.mkdir(parents=True, exist_ok=True)
+        if output.src.is_dir():
+            manifests["dir"] += [
+                (f"{output.src.absolute()}/", f"{output.dst.absolute()}")
+            ]
         elif output.src.stat().st_size > parse_size(config.rsync.large_file_threshold):
-            _large_files.append(output)
+            manifests["large"] += [
+                (f"{output.src.absolute()}", f"{output.dst.absolute()}")
+            ]
         else:
-            _small_files.append(output)
+            manifests["small"] += [
+                (f"{output.src.absolute()}", f"{output.dst.absolute()}")
+            ]
 
-    for tag, label, category in (
-        (
-            "large",
-            f"large file(s) (>{config.rsync.large_file_threshold})",
-            _large_files,
-        ),
-        (
-            "small",
-            f"small file(s) (<{config.rsync.large_file_threshold})",
-            _small_files,
-        ),
-        (
-            "dir",
-            "directories",
-            _directories,
-        ),
-    ):
-        if category:
-            logger.info(f"Syncing {len(category)} {label}")
-            manifest_path = workdir / f"rsync.{tag}.manifest"
-            with open(manifest_path, mode="w", encoding="utf-8") as manifest:
-                for o in category:
-                    manifest.write(f"{o.src.absolute()} {o.dst.absolute()}\n")
-
-            for o in category:
-                o.dst.parent.mkdir(parents=True, exist_ok=True)
-
-            logger.debug(f"Manifest: {manifest_path}")
-            logger.debug(manifest_path.read_text(encoding="utf-8"))
-
+    for type_, manifest in manifests.items():
+        if manifest:
+            logger.info(f"Syncing {len(manifest)} {labels[type_]}")
+            manifest_path = workdir / f"rsync.{type_}.manifest"
+            with open(manifest_path, "w", encoding="utf-8") as m:
+                m.writelines([f"{src} {dst}\n" for src, dst in manifest])
             executor.submit(
                 str(Path(__file__).parent / "scripts" / "rsync.sh"),
                 name="rsync",
@@ -99,7 +93,7 @@ def rsync_results(
                 callback=partial(
                     _sync_callback,
                     logger=logger,
-                    outputs=category,
+                    manifest=manifest,
                 ),
             )
 
