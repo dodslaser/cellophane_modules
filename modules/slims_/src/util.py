@@ -127,6 +127,11 @@ def parse_criteria(  # type: ignore[return]
         case [a, "or", b]:
             return [disjunction().add(parse_criteria(a)[0]).add(parse_criteria(b)[0])]
 
+        case [_, *mid, _] if "and" in mid or "or" in mid:
+            # This handles cases where multiple parentheses are used
+            # around a single criterion (e.g. "((((a equals b))))")
+            return parse_criteria(" ".join(criteria))
+
         case [field, *_] if not field.startswith("cntn_"):
             raise ValueError(f"Invalid field: {field}")
 

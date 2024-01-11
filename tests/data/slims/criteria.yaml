@@ -239,8 +239,18 @@ slims:
   - fieldName: cntn_a
     operator: equals
     value: a
-
-
+---
+id: muliple_parentheses
+criteria: ((((cntn_b equals b or cntn_c equals c))))
+slims:
+- operator: or
+  criteria:
+  - fieldName: cntn_b
+    operator: equals
+    value: b
+  - fieldName: cntn_c
+    operator: equals
+    value: c
 ---
 id: derived
 criteria: -> cntn_a equals a
