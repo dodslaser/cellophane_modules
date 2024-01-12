@@ -179,6 +179,28 @@ class SlimsSamples(data.Samples):
                 for record in records
             ]
         )
+    @classmethod
+    def from_criteria(
+        cls,
+        criteria: str,
+        config: cfg.Config,
+        connection: Slims | None = None,
+        **kwargs,
+    ) -> "SlimsSamples":
+        """Get samples from SLIMS records"""
+        _connection = connection or Slims(
+            name=__package__,
+            url=config.slims.url,
+            username=config.slims.username,
+            password=config.slims.password,
+        )
+        records = get_records(
+            string_criteria=criteria,
+            connection=_connection,
+            **kwargs,
+        )
+
+        return cls.from_records(records, config)
 
     def update_derived(
         self,
