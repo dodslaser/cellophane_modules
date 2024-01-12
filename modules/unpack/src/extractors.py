@@ -35,7 +35,7 @@ class Extractor:
         error_callback: Callable = None,
     ) -> AsyncResult | None:
         if [*self.extracted_paths(compressed_path)]:
-            callback()
+            callback(None)
             return None
         else:
             logger.info(f"Extracting {compressed_path.name} with {self.label}")

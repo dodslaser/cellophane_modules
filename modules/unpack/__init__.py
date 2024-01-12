@@ -50,12 +50,13 @@ def _callback(
 
 
 def _error_callback(
-    *args,
+    result: AsyncResult,
+    /,
     sample: data.Sample,
     logger: LoggerAdapter,
     path: Path,
 ) -> None:
-    del args  # Unused
+    del result  # Unused
     logger.error(f"Failed to extract {path.name}")
     if path in sample.files:
         sample.files.remove(path)
