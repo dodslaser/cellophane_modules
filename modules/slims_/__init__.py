@@ -315,8 +315,10 @@ def slims_fetch(
             if record.pk() not in [b.cntn_fk_originalContent.value for b in check]
         ]
 
-        for sid in set(original_ids) - set([r.cntn_id.value for r in records]):
-            logger.info(f"Found completed bioinformatics for {sid}")
+        completed = set(original_ids) - set([r.cntn_id.value for r in records])
+        logger.info(f"Skipping {len(completed)} previously completed samples")
+        for sid in completed:
+            logger.debug(f"{sid} already completed - Skipping")
 
         return samples.from_records(records, config)
 
