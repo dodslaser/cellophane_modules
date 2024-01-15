@@ -65,7 +65,8 @@ class SlimsSample(data.Sample):
         if self.record:
             for idx, (record, key_map) in enumerate(self.derived):
                 fields = {
-                    key: value.format(sample=self) for key, value in key_map.items()
+                    key: value.format(sample=self) if isinstance(value, str) else value
+                    for key, value in key_map.items()
                 }
                 fields |= {
                     "cntn_id": self.record.cntn_id.value,
@@ -179,6 +180,7 @@ class SlimsSamples(data.Samples):
                 for record in records
             ]
         )
+
     @classmethod
     def from_criteria(
         cls,
@@ -271,11 +273,11 @@ def slims_fetch(
             if not matches:
                 logger.warning(f"Unable to find SLIMS record for {sample.id}")
                 continue
-                
+
             elif len(matches) > 1 and not config.slims.allow_duplicates:
                 logger.warning(f"Found multiple SLIMS records for {sample.id}")
                 continue
-            
+
             else:
                 logger.debug(f"Found {len(matches)} SLIMS records(s) for {sample.id}")
 
