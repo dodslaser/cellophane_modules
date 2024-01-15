@@ -107,20 +107,22 @@ def hcp_fetch(
     **_,
 ) -> data.Samples:
     """Fetch files from HCP."""
+    for sample in samples.with_files:
+        logger.debug(f"Found all files for {sample.id} locally")
+
     if any(k not in config.get("hcp", {}) for k in ["credentials", "fastq_temp"]):
         logger.warning("HCP not configured")
         return samples
+
+    if samples.without_files:
+        logger.info(f"fetching {len(samples.without_files)} samples from HCP")
 
     with WorkerPool(
         n_jobs=config.hcp.parallel,
         use_dill=True,
         shared_objects=log_queue,
     ) as pool:
-        for sample in samples:
-            if all(Path(f).exists() for f in sample.files):
-                logger.info(f"All files for {sample.id} found locally")
-                continue
-
+        for sample in samples.without_files:
             sample.files = []
             if sample.hcp_remote_keys is None:
                 logger.warning(f"No backup for {sample.id}")
