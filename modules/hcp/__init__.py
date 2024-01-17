@@ -10,7 +10,6 @@ from attrs import Attribute, define, field
 from attrs.setters import convert
 from cellophane import cfg, data, logs, modules
 from mpire import WorkerPool
-from mpire.async_result import AsyncResult
 from NGPIris.hcp import HCPManager
 
 
@@ -44,7 +43,7 @@ def _fetch(
 
 
 def _callback(sample, f_idx, logger):
-    def inner(result: AsyncResult):
+    def inner(result: tuple[str, Path]):
         location, local_path = result
         if location != "local":
             logger.info(f"Fetched {local_path.name} from hcp")

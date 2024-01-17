@@ -10,7 +10,7 @@ from mpire.async_result import AsyncResult
 
 
 def _sync_callback(
-    result: AsyncResult,
+    result: None,
     /,
     logger: LoggerAdapter,
     manifest: list[tuple[str, str]],

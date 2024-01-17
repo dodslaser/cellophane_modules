@@ -18,7 +18,7 @@ extractors: dict[str, Extractor] = {
 
 
 def _callback(
-    result: AsyncResult,
+    result: None,
     /,
     extractor: Extractor,
     timeout: int,
@@ -50,14 +50,13 @@ def _callback(
 
 
 def _error_callback(
-    result: AsyncResult,
+    exception: Exception,
     /,
     sample: data.Sample,
     logger: LoggerAdapter,
     path: Path,
 ) -> None:
-    del result  # Unused
-    logger.error(f"Failed to extract {path.name}")
+    logger.error(f"Failed to extract {path.name}: {exception}")
     if path in sample.files:
         sample.files.remove(path)
 
