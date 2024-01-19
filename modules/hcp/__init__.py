@@ -1,20 +1,16 @@
 """Module for fetching files from HCP."""
-
-import logging
-import multiprocessing as mp
 import sys
 from logging import LoggerAdapter
 from pathlib import Path
 
 from attrs import Attribute, define, field
 from attrs.setters import convert
-from cellophane import cfg, data, logs, modules
+from cellophane import cfg, data, modules
 from mpire import WorkerPool
 from NGPIris.hcp import HCPManager
 
 
 def _fetch(
-    log_queue: mp.Queue = None,
     *,
     credentials: Path,
     local_path: Path,
@@ -22,34 +18,24 @@ def _fetch(
 ) -> str:
     sys.stdout = open("/dev/null", "w", encoding="utf-8")
     sys.stderr = open("/dev/null", "w", encoding="utf-8")
-    logs.setup_queue_logging(log_queue)
-    logger = logging.LoggerAdapter(logging.getLogger(), {"label": "HCP Fetch"})
-    if local_path.exists():
-        return "local", local_path
 
     hcpm = HCPManager(
         credentials_path=credentials,
         bucket="data",  # FIXME: make this configurable
     )
 
-    logger.info(f"Fetching {remote_key} from HCP")
     hcpm.download_file(
         remote_key,
         local_path=str(local_path),
         callback=False,
         force=True,
     )
-    return "hcp", local_path
+    return local_path
 
 
 def _callback(sample, f_idx, logger):
-    def inner(result: tuple[str, Path]):
-        location, local_path = result
-        if location != "local":
-            logger.info(f"Fetched {local_path.name} from hcp")
-        else:
-            logger.debug(f"Found {local_path.name} locally")
-
+    def inner(local_path: Path):
+        logger.debug(f"Fetched {local_path.name} from hcp")
         sample.files.insert(f_idx, local_path)
 
     return inner
@@ -102,7 +88,6 @@ def hcp_fetch(
     samples: data.Samples,
     config: cfg.Config,
     logger: LoggerAdapter,
-    log_queue: mp.Queue,
     **_,
 ) -> data.Samples:
     """Fetch files from HCP."""
@@ -119,7 +104,6 @@ def hcp_fetch(
     with WorkerPool(
         n_jobs=config.hcp.parallel,
         use_dill=True,
-        shared_objects=log_queue,
     ) as pool:
         for sample in samples.without_files:
             sample.files = []
@@ -128,11 +112,18 @@ def hcp_fetch(
                 continue
 
             for f_idx, remote_key in enumerate(sample.hcp_remote_keys):
+                local_path = config.hcp.fastq_temp / Path(remote_key).name
+
+                if local_path.exists():
+                    sample.files.insert(f_idx, local_path)
+                    logger.debug(f"Found {local_path.name} locally")
+                    continue
+
                 pool.apply_async(
                     _fetch,
                     kwargs={
                         "credentials": config.hcp.credentials,
-                        "local_path": config.hcp.fastq_temp / Path(remote_key).name,
+                        "local_path": local_path,
                         "remote_key": remote_key,
                     },
                     callback=_callback(sample, f_idx, logger),
