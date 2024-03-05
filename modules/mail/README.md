@@ -4,20 +4,21 @@ Module for sending start/end mail notifications.
 
 ## Configuration
 
-Option                 | Type | Required | Default             | Description
------------------------|------|----------|---------------------|-------------
-`mail.start.subject`   | str  |          | See [Start](#Start) | Subject of the mail (jinja2 template)
-`mail.start.body`      | str  |          | See [Start](#Start) | Body of the mail (jinja2 template)
-`mail.start.from_addr` | str  | -        |                     | From address to use
-`mail.start.to_addr`   | list | -        |                     | List of recipients
-`mail.start.cc_addr`   | list | -        |                     | List of CC recipients
-`mail.end.subject`     | str  | -        | See [End](#End)     | Subject of the mail (jinja2 template)
-`mail.end.body`        | str  | -        | See [End](#End)     | Body of the mail (jinja2 template)
-`mail.smtp.host`       | str  | x        |                     | SMTP host
-`mail.smtp.port`       | int  |          | 25                  | SMTP port
-`mail.smtp.tls`        | bool |          | false               | Use TLS
-`mail.smtp.user`       | str  |          |                     | SMTP username
-`mail.smtp.password`   | str  |          |                     | SMTP password
+Option                 | Type | Required | Default                 | Description
+-----------------------|------|----------|-------------------------|-------------
+mail.send              | bool |          | false                   | Send mail
+mail.from_addr         | str  |          |                         | Default from address
+mail.to_addr           | arr  |          |                         | Default list of recipients
+mail.cc_addr           | arr  |          |                         | Default list of CC recipients
+mail.start.subject     | str  |          | [Start Subject](#start) | Subject of the mail (jinja2 template)
+mail.start.body        | str  |          | [Start Body](#start)    | Body of the mail (jinja2 template)
+mail.end.subject       | str  |          | [End Subject](#end)     | Subject of the mail (jinja2 template)
+mail.end.body          | str  |          | [End Body](#end)        | Body of the mail (jinja2 template)
+mail.smtp.host         | str  | x        |                         | SMTP host
+mail.smtp.port         | int  |          | 25                      | SMTP port
+mail.smtp.tls          | bool |          | false                   | Use TLS
+mail.smtp.user         | str  |          |                         | SMTP username
+mail.smtp.password     | str  |          |                         | SMTP password
 
 ## Hooks
 
@@ -32,8 +33,9 @@ Name                   | When | Condition | Description
 
 **Body:**
 
-```
+```jinja
 {{ analysis }} has started for {{ samples.unique_ids|length }} sample(s).
+
 The following samples are being analyzed:
 {% for id in samples.unique_ids %}
 {{ id }}
@@ -46,7 +48,7 @@ The following samples are being analyzed:
 
 **Body:**
 
-```
+```jinja
 {{ analysis }} has finished processing {{ samples.unique_ids|length }} sample(s).
 {% if samples.failed|length > 0 %}
 ❗️ Analysis failed for the following samples:

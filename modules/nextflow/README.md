@@ -6,41 +6,43 @@ Module providing convenient access to functionality for launching NextFlow pipel
 
 Option                      | Type | Required | Default  | Description
 ----------------------------|------|----------|----------|-------------
-`nextflow.threads`          | int  |          | 2        | SGE slots the NextFlow main process
+`nextflow.threads`          | int  |          | 2        | Threads for nextflow manager
 `nextflow.config`           | str  |          |          | Nextflow config file
-`nextflow.profile`          | str  |          |          | Config profile(s) to use
-`nextflow.ansi_log`         | bool |          | false    | Enable ANSI logging
-`nextflow.nf_module`        | str  |          | nextflow | NextFlow envmodule to load
-`nextflow.java_module`      | str  |          | java     | Java envmodule to load
+`nextflow.profile`          | str  |          |          | Nextflow profile
+`nextflow.workdir`          | str  |          |          | Nextflow workdir
+`nextflow.ansi_log`         | bool |          | false    | Enable ANSI log
+`nextflow.init`             | str  |          |          | Code to run before running Nextflow (Bash)
+`nextflow.env`              | dict |          | {}       | Environment variables that will be passed to the nextflow process
 
 # Functions
 
-```
-nextflow(
+```python
+def nextflow(
     main: Path,
     *args,
-    config: cfg.Config,
-    env: dict[str, str] = {},
-    log: Path|None = None,
-    report: Path|None = None,
-    workdir: Path|None = None,
-    nf_config: Path|None = None,
+    config: cellophane.Config,
+    executor: cellophane.Executor,
+    workdir: Path,
+    env: dict[str, str] | None = None,
+    nxf_config: Path | None = None,
+    nxf_work: Path | None = None,
+    nxf_profile: str | None = None,
     ansi_log: bool = False,
     resume: bool = False,
-    **kwargs,
-) -> multiprocessing.Process:
+    name: str = "nextflow",
+    check: bool = True,
+    **kwargs
+) -> tuple[AsyncResult, UUID]:
 ```
 
-Launch the NextFlow pipeline specified by `main`. Environment variables can be passed using `env`. Logs will be written to the path specified by `log` or discarded if it is None. If `report` is specified an HTML execution report will be written here. The NextFlow working directory can be specified by `workdir`. The `resume` parameter allows NextFlow execution to be resumed (assuming the output prefix is specified so that output is placed in the same location as a previous run) 
-
-Additional `**kwargs` will be passed to `cellophane.sge.submit`
+Launch the NextFlow pipeline specified by `main`  with `*args` as CLI arguments. `config` should be the current configuration. `executor` is the executor instance that will be used to spawn the NextFlow manager process. `workdir` is the working directory for the NextFlow manager. Environment variables can be passed using `env`. `nxf_config`, `nxf_work`, and `nxf_profile` are the NextFlow config file, workdir, and profile, respectively. `ansi_log` enables ANSI log. `resume` enables resuming a previous run. `name` is the name of the process. `check` will raise an exception if the process fails. Any `**kwargs` will be passed to the executor's `submit` method.
 
 ## Mixins
 
 `NextflowSamples`
 
-```
+```python
 nfcore_samplesheet(self, *_, location: str | Path, **kwargs) -> Path:
 ```
-Write an nf-core compatible sample sheet at `location`. Any `**kwargs` will be added as columns. Values in `**kwargs` may be strings (same will be added to all samples) or a `sample.id -> value` mapping, in which case the value for each sample cn be assigned individually.  
 
+Write an nf-core compatible sample sheet at `location`. Any `**kwargs` will be added as columns. Values in `**kwargs` may be strings (same will be added to all samples) or a `sample.id -> value` mapping, in which case the value for each sample cn be assigned individually.
