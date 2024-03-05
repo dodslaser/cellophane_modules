@@ -1,0 +1,30 @@
+{
+  "grid_engine": {
+    "path": "modules/grid_engine/",
+    "versions": {}
+  },
+  "hcp": {
+    "path": "modules/hcp/",
+    "versions": {}
+  },
+  "mail": {
+    "path": "modules/mail/",
+    "versions": {}
+  },
+  "nextflow": {
+    "path": "modules/nextflow/",
+    "versions": {}
+  },
+  "rsync": {
+    "path": "modules/rsync/",
+    "versions": {}
+  },
+  "slims": {
+    "path": "modules/slims_/",
+    "versions": {}
+  },
+  "unpack": {
+    "path": "modules/unpack/",
+    "versions": {}
+  }
+}

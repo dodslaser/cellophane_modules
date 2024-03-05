@@ -27,4 +27,4 @@ properties:
       env:
         type: mapping
         description: Environment variables that will be passed to the nextflow process
-        default: [""]
+        default: {}

@@ -272,7 +272,7 @@
 
 - id: slims_by_id
   external:
-    ../cellophane_modules/slims: modules/slims
+    "..": modules/slims
 
   mocks:
     _cellophane_module_slims.Slims.fetch:

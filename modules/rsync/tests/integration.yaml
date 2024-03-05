@@ -32,7 +32,7 @@
       static_end: end
 
   external:
-    ../cellophane_modules/rsync: modules/rsync
+    "..": modules/rsync
 
   mocks:
     _cellophane_module_rsync.sge.submit: ~

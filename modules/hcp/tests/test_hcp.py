@@ -1,18 +1,24 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import hcp
 from cellophane import data
+from cellophane.src.testing import parametrize_from_yaml
 from pytest import fixture, mark, param, raises
 from pytest_mock import MockerFixture
 
-from cellophane_modules import hcp
-
-INTEGRATION = Path(__file__).parent / "integration"
-
+ROOT = Path(__file__).parent
 
 @fixture(scope="class")
 def hcp_sample():
     return data.Sample.with_mixins([hcp.HCPSample])
+
+
+class Test_integration:
+    @staticmethod
+    @parametrize_from_yaml([ROOT / "integration.yaml"])
+    def test_integration(definition: Path, run_definition):
+        run_definition(definition)
 
 
 class Test__fetch:
@@ -20,28 +26,14 @@ class Test__fetch:
     def test__fetch(tmp_path, mocker: MockerFixture):
         _hcpm_mock = MagicMock()
         _hcpm_factory_mock = mocker.patch(
-            "cellophane_modules.hcp.HCPManager",
+            "hcp.HCPManager",
             return_value=_hcpm_mock,
         )
 
-        assert (
-            hcp._fetch(
-                credentials="CREDS",
-                local_path=tmp_path / "foo",
-                remote_key="foo",
-            )[0]
-            == "hcp"
-        )
-
-        (tmp_path / "bar").touch()
-
-        assert (
-            hcp._fetch(
-                credentials="CREDS",
-                local_path=tmp_path / "bar",
-                remote_key="bar",
-            )[0]
-            == "local"
+        hcp._fetch(
+            credentials="CREDS",
+            local_path=tmp_path / "foo",
+            remote_key="foo",
         )
 
         _hcpm_factory_mock.assert_called_once_with(

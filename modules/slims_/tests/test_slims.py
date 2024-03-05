@@ -2,13 +2,18 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from cellophane import data
+from cellophane.src.testing import parametrize_from_yaml
 from pytest import mark, param, raises
 from ruamel.yaml import YAML
 from slims.slims import Record
+from slims_.src import util as slims_util
 
-from cellophane_modules.slims.src import util as slims_util
 
-DATA = Path(__file__).parent / "data"
+class Test_integration:
+    @staticmethod
+    @parametrize_from_yaml("integration.yaml")
+    def test_integration(definition: Path, run_definition):
+        run_definition(definition)
 
 
 class RecordMock(MagicMock):
@@ -35,7 +40,7 @@ class Test_criteria:
                 d.get("kwargs", {}),
                 id=d["id"],
             )
-            for d in YAML(typ="unsafe").load_all(DATA / "slims" / "criteria.yaml")
+            for d in YAML(typ="unsafe").load_all("criteria.yaml")
         ],
     )
     def test_criteria(criteria, slims, exception, kwargs):

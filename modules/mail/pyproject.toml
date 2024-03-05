@@ -1,14 +1,13 @@
 [tool.poetry]
-name = "cellophane-modules"
+name = "cellophane-mail"
 version = "0.1.1"
-description = "Collection of modules for cellophane wrappers"
-authors = ["Erik Demitz-Helin <erik.demitz-helin@gu.se>"]
+description = "Mail module for Cellophane"
+authors = ["dodslaser <2969909+dodslaser@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-cellophane={git = "https://github.com/ClinicalGenomicsGBG/cellophane.git", branch = "dev"}
-
+jinja2 = '3.1.2'
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.0.0"
@@ -19,9 +18,9 @@ pytest-mock = "^3.11.1"
 pytest-clarity = "^1.0.1"
 pytest-cov = "^4.1.0"
 pylint = "^3.0.2"
-slims-python-api = "^6.8.0"
 humanfriendly = "^10.0"
 ngpiris = "^4.3.0"
+cellophane={git = "https://github.com/ClinicalGenomicsGBG/cellophane.git", branch = "dev"}
 
 [build-system]
 requires = ["poetry-core"]

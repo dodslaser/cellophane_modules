@@ -8,7 +8,7 @@
         hcp_remote_keys:
         - BACKUP
   external:
-    ../cellophane_modules/hcp: modules/hcp
+    '..': modules/hcp
   mocks:
     _cellophane_module_hcp.HCPManager: ~
     _cellophane_module_hcp.sys: ~
@@ -56,7 +56,7 @@
     input:
       PRESENT: PRESENT
   logs:
-    - All files for PRESENT found locally
+    - Found all files for PRESENT locally
 
 - <<: *hcp_test
   id: not_configured

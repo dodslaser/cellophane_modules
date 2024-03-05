@@ -15,11 +15,10 @@ from uuid import uuid4
 
 import drmaa2
 from attrs import define
+from grid_engine import GridEngineExecutor
 from mpire import WorkerPool
 from pytest import FixtureLookupError, fixture, raises
 from pytest_mock import MockerFixture
-
-from cellophane_modules.grid_engine import GridEngineExecutor
 
 
 @fixture(scope="function")
@@ -37,7 +36,7 @@ def job_session(request):
 
         def get_state(self):
             return _state, None
-    
+
     @define
     class JobSessionMock():
         close = MagicMock()
@@ -50,15 +49,15 @@ def job_session(request):
 
 class Test_GridEngineExecutor:
     def test_submit(self, job_session, tmp_path, mocker: MockerFixture):
-        
+
         mocker.patch(
-            "cellophane_modules.grid_engine.drmaa2.JobSession",
+            "grid_engine.drmaa2.JobSession",
             return_value=job_session,
         )
 
         config = MagicMock(workdir=tmp_path)
         logger = logging.getLogger()
-        
+
         with (
             raises(SystemExit),
             WorkerPool(1) as pool,

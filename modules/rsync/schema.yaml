@@ -3,8 +3,6 @@ required:
 properties:
   rsync:
     type: object
-    required:
-      - base
     properties:
       overwrite:
         type: boolean
