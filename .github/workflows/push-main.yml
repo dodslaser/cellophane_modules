@@ -1,0 +1,68 @@
+---
+name: push-main
+
+permissions: read-all
+
+on: # yamllint disable-line rule:truthy
+  push:
+    branches: main
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  cellophane-releases:
+    runs-on: ubuntu-latest
+    outputs:
+      releases: ${{ steps.get-tags.outputs.releases }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: -1
+    - name: get-tags
+      id: get-tags
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        releases=$(gh release list -L 5 -R ClinicalGenomicsGBG/cellophane --json tagName --jq '[.[].tagName]')
+        code=$? [[ "$code" != "0" ]] && exit $code
+        echo releases=$releases | tee -a "$GITHUB_OUTPUT"
+
+  matrix:
+    name: module-matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate-matrix.outputs.matrix }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: -1
+    - name: generate-matrix
+      id: generate-matrix
+      run: |
+        matrix=$(jq 'to_entries | map({name: .key, path: .value.path})' modules.json)
+        code=$?; [[ "$code" != "0" ]] && exit $code
+        echo matrix=$matrix | tee -a "$GITHUB_OUTPUT"
+
+  module-pr:
+    name: module-pr
+    uses: ./.github/workflows/def_module-pr.yml
+    needs: [matrix, cellophane-releases]
+    if: needs.matrix.outputs.matrix != '[]'
+    permissions:
+      pull-requests: write
+      contents: write
+      checks: write
+      issues: write
+      statuses: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.matrix.outputs.matrix) }}
+    with:
+      module: ${{ matrix.name }}
+      path: ${{ matrix.path }}
+      base: main
+      head: ${{ github.event.ref }}
+      cellophane-repo: ClinicalGenomicsGBG/cellophane
+      cellophane-releases: ${{ needs.cellophane-releases.outputs.releases }}

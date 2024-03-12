@@ -1,0 +1,44 @@
+---
+name: PR Closed on Main
+permissions: read-all
+
+on: # yamllint disable-line rule:truthy
+  pull_request_target:
+    types: [closed]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  metadata:
+    if: startsWith(github.head_ref, 'release/') && github.event.pull_request.merged == true
+    name: Cellect PR metadata
+    runs-on: ubuntu-latest
+    outputs:
+      module: ${{ steps.metadata.outputs.module }}
+      path: ${{ steps.metadata.outputs.path }}
+      tag: ${{ steps.metadata.outputs.tag }}
+    steps:
+      - name: metadata
+        id: metadata
+        run: |
+          for field in module path tag; do
+            sed -nE 's/.*<!-- ('${field}'="[^"]+") -->.*/\1/p' <<< '${{ github.event.pull_request.body }}' | tr -d '"' | tee -a "$GITHUB_OUTPUT"
+          done
+
+  publish-tag:
+    name: Publish Tag
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    needs: metadata
+    permissions:
+      contents: write
+    env:
+      next_tag: ${{ needs.metadata.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: tag
+        run: |
+          git tag ${{ env.next_tag }}
+          git push origin ${{ env.next_tag }} -f

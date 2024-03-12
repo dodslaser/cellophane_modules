@@ -1,30 +1,65 @@
 {
   "grid_engine": {
     "path": "modules/grid_engine/",
-    "versions": {}
+    "versions": {
+      "dev": {
+        "tag": "dev",
+        "cellophane": [">0.0.0"]
+      }
+    }
   },
   "hcp": {
     "path": "modules/hcp/",
-    "versions": {}
+    "versions": {
+      "dev": {
+        "tag": "dev",
+        "cellophane": [">0.0.0"]
+      }
+    }
   },
   "mail": {
     "path": "modules/mail/",
-    "versions": {}
+    "versions": {
+      "dev": {
+        "tag": "dev",
+        "cellophane": [">0.0.0"]
+      }
+    }
   },
   "nextflow": {
     "path": "modules/nextflow/",
-    "versions": {}
+    "versions": {
+      "dev": {
+        "tag": "dev",
+        "cellophane": [">0.0.0"]
+      }
+    }
   },
   "rsync": {
     "path": "modules/rsync/",
-    "versions": {}
+    "versions": {
+      "dev": {
+        "tag": "dev",
+        "cellophane": [">0.0.0"]
+      }
+    }
   },
   "slims": {
     "path": "modules/slims_/",
-    "versions": {}
+    "versions": {
+      "dev": {
+        "tag": "dev",
+        "cellophane": [">0.0.0"]
+      }
+    }
   },
   "unpack": {
     "path": "modules/unpack/",
-    "versions": {}
+    "versions": {
+      "dev": {
+        "tag": "dev",
+        "cellophane": [">0.0.0"]
+      }
+    }
   }
 }

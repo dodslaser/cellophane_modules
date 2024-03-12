@@ -1,0 +1,188 @@
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  workflow_call:
+    inputs:
+      module:
+        description: 'Module name'
+        type: string
+        required: true
+      path:
+        description: 'Path to the module'
+        type: string
+        required: true
+      head:
+        description: 'HEAD to fetch commits from'
+        type: string
+      base:
+        description: 'Base branch to create the PR against'
+        type: string
+        required: true
+      cellophane-repo:
+        description: 'Cellophane repo to fetch releases from'
+        type: string
+        required: true
+      cellophane-releases:
+        description: 'Cellophane releases to test against'
+        type: string
+        required: true
+    outputs:
+      pr-number:
+        value: ${{ jobs.module-pr.outputs.pr-number }}
+      pr-head-sha:
+        value: ${{ jobs.module-pr.outputs.pr-head-sha }}
+
+jobs:
+  semver:
+    name: Calculate next version
+    uses: ./.github/workflows/def_module-semver.yml
+    with:
+      module: ${{ inputs.module }}
+      path: ${{ inputs.path }}
+
+  changelog:
+    name: Generate changelog
+    needs: semver
+    uses: ./.github/workflows/def_changelog.yml
+    with:
+      head: ${{ inputs.head }}
+      base: ${{ needs.semver.outputs.current-tag }}
+      path: ${{ inputs.path }}
+
+  sync-poetry:
+    uses: ./.github/workflows/def_sync-poetry.yml
+    needs: semver
+    with:
+      module: ${{ inputs.module }}
+      head: ${{ inputs.head }}
+      path: ${{ inputs.path }}
+      version: ${{ needs.semver.outputs.next-version }}
+
+  module-pr:
+    needs: [semver, sync-poetry, changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pr-number: ${{ steps.create-or-update-pr.outputs.pull-request-number }}
+      pr-head-sha: ${{ steps.create-or-update-pr.outputs.pull-request-head-sha }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.head }}
+    - name: git-reset
+      run: git reset --hard ${{ inputs.head }}
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: '${{ inputs.module }}-poetry-files'
+        path: ${{ inputs.path }}
+        merge-multiple: true
+    - uses: peter-evans/create-pull-request@v6
+      id: create-or-update-pr
+      with:
+        title: "Release ${{ inputs.module }} ${{ needs.semver.outputs.next-version }} 🚀"
+        body: |
+          ${{ needs.changelog.outputs.changes }}
+          <!-- METADATA USED BY AUTOMATION - DO NOT MODIFY -->
+          <!-- module="${{ inputs.module }}" -->
+          <!-- path="${{ inputs.path }}" -->
+          <!-- tag="${{ needs.semver.outputs.next-tag }}" -->
+        branch: release/${{ inputs.module }}
+        base: ${{ inputs.base }}
+        labels: release
+
+    - name: comment-pr
+      if: steps.create-or-update-pr.outputs.pull-request-operation == 'created'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        comment: |
+          # 🤖 \*bleep bloop\*
+
+          This is a fully automated module PR. I will be automatically updated with any changes pushed to ${{ inputs.base }}.
+
+          When merged I will ~~achieve world domination~~ tag ${{ needs.semver.outputs.next-tag }}.
+      run: gh pr comment release/${{ inputs.module }} --body '${{ env.comment }}'
+
+
+  pytest-released:
+    name: pytest-previous
+    needs: [semver, module-pr]
+    uses: ./.github/workflows/def_pytest.yml
+    permissions:
+      checks: write
+      pull-requests: write
+    strategy:
+      matrix:
+        cellophane: ${{ fromJson(inputs.cellophane-releases) }}
+      fail-fast: false
+    with:
+      pr-head-sha: ${{ needs.module-pr.outputs.pr-head-sha }}
+      module: ${{ inputs.module }}
+      path: ${{ inputs.path }}
+      version: ${{ needs.semver.outputs.next-version }}
+      cellophane-repo: ${{ inputs.cellophane-repo }}
+      cellophane-tag: ${{ matrix.cellophane }}
+
+  pytest-dev:
+    name: pytest-latest
+    needs: [semver, module-pr]
+    uses: ./.github/workflows/def_pytest.yml
+    permissions:
+      checks: write
+      pull-requests: write
+    with:
+      pr-head-sha: ${{ needs.module-pr.outputs.pr-head-sha }}
+      module: ${{ inputs.module }}
+      path: ${{ inputs.path }}
+      version: ${{ needs.semver.outputs.next-version }}
+      cellophane-repo: ${{ inputs.cellophane-repo }}
+      cellophane-tag: dev
+      ignore-fail: true
+      publish-results: true
+
+  update-module-json:
+    name: update-module-json
+    needs: [pytest-released, pytest-dev, module-pr, semver]
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/${{ inputs.module }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '${{ inputs.module }}-*.support.json'
+          merge-multiple: true
+      - name: merge-json
+        env:
+          jq_script: |
+            (. | flatten) as $cellophane
+            | $modules
+            | .["${{ inputs.module }}"].versions[$version] = {cellophane: $cellophane, tag: $tag}
+            | .["${{ inputs.module }}"].latest = $version
+        run: |
+          _modules=$(
+            jq \
+              --slurp \
+              --arg version "${{ needs.semver.outputs.next-version }}" \
+              --arg tag "${{ needs.semver.outputs.next-tag }}" \
+              --arg latest_tag "${{ inputs.module }}/latest" \
+              --argjson modules "$(cat modules.json)" \
+              '${{ env.jq_script }}' *.support.json
+          )
+          code=$?; [[ "$code" != "0" ]] && exit $code
+          cat | tee modules.json<< EOF
+          $_modules
+          EOF
+      - name: git-commit
+        run: |
+          git config --global user.email "<>"
+          git config --global user.name "github-actions[bot]"
+          git add modules.json
+          git commit -m "chore: Update supported cellophane versions for ${{inputs.module}} ${{ needs.semver.outputs.next-version }}"
+          git push

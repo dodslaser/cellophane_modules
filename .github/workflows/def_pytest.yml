@@ -1,0 +1,155 @@
+---
+name: Run pytest
+
+permissions:
+  checks: write
+  pull-requests: write
+
+on: # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      publish-results:
+        description: 'Publish test results'
+        required: false
+        type: boolean
+        default: false
+      pr-head-sha:
+        description: The head sha of the pull request
+        type: string
+        required: true
+      module:
+        description: The module to test
+        type: string
+        required: true
+      path:
+        description: The working directory (must contain pyproject.toml)
+        type: string
+        required: true
+      version:
+        description: The version of the module to test
+        type: string
+        required: true
+      cellophane-repo:
+        description: The repository of cellophane to use
+        type: string
+        required: true
+      cellophane-tag:
+        description: The version of cellophane to use
+        type: string
+        required: true
+      ignore-fail:
+        description: Ignore test failures
+        type: boolean
+        required: false
+        default: false
+
+env:
+  support_json: ${{ inputs.module }}-${{ inputs.cellophane-tag }}.support.json
+
+jobs:
+  cache:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+      cache-primary-key: ${{ steps.cache.outputs.cache-primary-key }}
+      result: ${{ steps.result.outputs.result }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/cache/restore@v4
+      id: cache
+      with:
+        key: ${{ inputs.module }}-${{ hashFiles(inputs.path) }}-${{ inputs.version }}-${{ inputs.cellophane-repo }}-${{ inputs.cellophane-tag }}
+        path: CACHE
+    - name: result
+      id: result
+      run: echo result=$(cat CACHE) | tee -a "$GITHUB_OUTPUT"
+
+  pytest:
+    runs-on: ubuntu-latest
+    needs: cache
+    if: ${{ needs.cache.outputs.cache-hit != 'true' }}
+    permissions:
+      checks: write
+      pull-requests: write
+    outputs:
+      result: ${{ steps.pytest.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.pr-head-sha }}
+      - name: install-poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+          cache-dependency-path: '${{ inputs.path }}/poetry.lock'
+      - name: poetry-install
+        working-directory: ${{ inputs.path }}
+        run: poetry install
+      - name: install-cellophane
+        working-directory: ${{ inputs.path }}
+        run: poetry run pip install --force-reinstall git+https://github.com/${{ inputs.cellophane-repo }}.git@${{ inputs.cellophane-tag }}
+      - name: pytest
+        id: pytest
+        timeout-minutes: 1
+        env:
+          TERM: dumb
+        working-directory: ${{ inputs.path }}
+        run: |
+          set +e
+          poetry run pytest --junit-xml=pytest.xml
+          code=$?
+          if [[ "$code" == "0" ]]; then
+            echo ::notice::Tests passed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
+            echo result=${{ inputs.cellophane-tag }} | tee -a "$GITHUB_OUTPUT"
+          elif [[ "$code" == "1" ]]; then
+            echo ::warning::Tests failed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
+            echo result=failure | tee -a "$GITHUB_OUTPUT"
+          elif [[ "$code" == "5" ]]; then
+            echo ::warning::No tests found for ${{ inputs.module }}
+            echo result=failure | tee -a "$GITHUB_OUTPUT"
+          else
+            echo ::error::Unexpected pytest exit code $code
+            echo result=failure | tee -a "$GITHUB_OUTPUT"
+          fi
+
+      - uses: EnricoMi/publish-unit-test-result-action@v2
+        if: ${{ (!cancelled()) && inputs.publish-results }}
+        with:
+          files: ${{ inputs.path }}/pytest.xml
+          commit: ${{ inputs.pr-head-sha }}
+
+  support-json:
+    runs-on: ubuntu-latest
+    needs: [cache, pytest]
+    if: ${{ !cancelled() }}
+    steps:
+    - name: generate-support-json
+      run: |
+        if [[ '${{ needs.cache.outputs.result }}' == 'failure' ]]; then
+          echo ::warning::[CACHED] Tests failed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
+          echo '${{ needs.cache.outputs.result }}' | tee CACHE
+        elif [[ ! -z '${{ needs.cache.outputs.result }}' ]]; then
+          echo ::notice::[CACHED] Tests passed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
+          echo '"${{ needs.cache.outputs.result }}"' | tee ${{ env.support_json}} | tr -d '"' >> CACHE
+        elif [[ '${{ needs.pytest.outputs.result }}' != 'failure' ]]; then
+          echo '"${{ needs.pytest.outputs.result }}"' | tee ${{ env.support_json}} | tr -d '"' >> CACHE
+        else
+          echo 'failure' | tee CACHE
+        fi
+
+        if [[ '${{ inputs.ignore-fail }}' == 'true' ]]; then
+          echo ::notice::Ignoring test failures
+          echo '"${{ inputs.cellophane-tag }}"' | tee ${{ env.support_json}}
+        fi
+
+    - uses: actions/upload-artifact@v4
+      if: ${{ (needs.cache.outputs.result != 'failure' && needs.pytest.outputs.result != 'failure') || inputs.ignore-fail }}
+      with:
+        name: ${{ env.support_json}}
+        path: ${{ env.support_json}}
+    - uses: actions/cache/save@v4
+      with:
+        key: ${{ needs.cache.outputs.cache-primary-key }}
+        path: CACHE
