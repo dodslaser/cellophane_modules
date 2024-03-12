@@ -8,6 +8,7 @@ from typing import Literal
 from attrs import define, field, fields_dict
 from attrs.setters import validate
 from cellophane import cfg, data, modules, util
+
 from slims.slims import Record, Slims
 
 from .src.util import get_field, get_records
@@ -117,7 +118,8 @@ class SlimsSample(data.Sample):
     @property
     def pk(self):
         """Get the primary key of the record"""
-        return self.record.pk()
+        return self.record.pk() if self.record is not None else None
+
 
     @property
     def connection(self) -> Slims | None:

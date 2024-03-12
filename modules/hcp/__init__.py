@@ -79,8 +79,7 @@ class HCPSample(data.Sample):
 
 @data.Sample.merge.register("hcp_remote_keys")
 def _(this, that) -> set[str] | None:
-    if not this or that is None:
-        return (this or set()) | (that or set())
+    return (this or set()) | (that or set()) if not this or that is None else None
 
 
 @modules.pre_hook(label="HCP", after=["slims_fetch"])
