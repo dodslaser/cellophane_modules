@@ -4,21 +4,40 @@ This is the main repo containing all public cellophane modules. Modules aim to b
 
 ## Using a module
 
-Modules can be added to a cellophane wrapper as subtrees or submodules in the `modules` directory.
+Modules can be added, updated, or removed from a wrapper using the cellophane CLI.
 
 ```shell
-git remote add modules "https://github.com/ClinicalGenomicsGBG/cellophane_modules"
-git subtree add modules my_module --prefix modules/my_module --squash -m "Add my_module"
+# Add
+python -m cellophane add my_module
+
+# Update
+python -m cellophane update my_module
+
+# Remove
+python -m cellophane rm my_module
 ```
 
-To update a module simply pull the subtree
-
-```shell
-git subtree pull modules my_module --prefix modules/my_module --squash -m "Update my_module"
-```
-
-Hooks, Mixins and Runners are automatically detected by cellophane on runtime. Configuration schemas will be automatically merged, and configuration options made available. 
+Hooks, Mixins and Runners are automatically detected by cellophane on runtime. Configuration schemas will be automatically merged, and configuration options made available.
 
 ## Adding a new module to the repo
 
-To add a module to this repo the module needs to be added to the branch_modules workflow. This will create a separate branch for each module which can then be added by cellophane wrappers.
+To add a module to this repo, a minimal definition needs to be added to `modules.json`. The definition will be automatically updated by the CI/CD pipeline.
+
+```json
+{
+  // ...
+
+  "my_module": {
+    "path": "modules/my_module/",
+    "latest": "dev",
+    "versions": {
+      "dev": {
+        "tag": "dev",
+        "cellophane": [">0.0.0"]
+      }
+    }
+  }
+
+  // ...
+}
+```
