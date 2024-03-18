@@ -10,7 +10,13 @@ from mpire.async_result import AsyncResult
 
 class NextflowSamples(data.Samples):
     """Samples with Nextflow-specific methods."""
-    def nfcore_samplesheet(self, *_, location: str | Path, **kwargs) -> Path:
+
+    def nfcore_samplesheet(
+        self,
+        *_,
+        location: str | Path,
+        **kwargs,
+    ) -> Path:
         """Write a Nextflow samplesheet"""
         Path(location).mkdir(parents=True, exist_ok=True)
         _data = [
@@ -19,7 +25,11 @@ class NextflowSamples(data.Samples):
                 "fastq_1": str(sample.files[0]),
                 "fastq_2": str(sample.files[1]) if len(sample.files) > 1 else "",
                 **{
-                    k: v[sample.id] if isinstance(v, Mapping) else v
+                    k: (
+                        v.format(sample=sample)
+                        if isinstance(v, str)
+                        else v
+                    )
                     for k, v in kwargs.items()
                 },
             }
@@ -50,7 +60,7 @@ def nextflow(
     resume: bool = False,
     name: str = "nextflow",
     check: bool = True,
-    **kwargs
+    **kwargs,
 ) -> tuple[AsyncResult, UUID]:
     """Submit a Nextflow job to SGE."""
 
@@ -87,5 +97,5 @@ def nextflow(
 
     if check:
         result.get()
-    
+
     return result, uuid
