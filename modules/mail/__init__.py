@@ -7,18 +7,18 @@ from smtplib import SMTP
 from typing import Literal, Sequence
 
 from attrs import define, field
-from cellophane import cfg, data, modules
+from cellophane import Config, Sample, Samples, post_hook, pre_hook
 from jinja2 import Environment
 
 
 @define(slots=False)
-class MailSample(data.Sample):
+class MailSample(Sample):
     """A sample with mail attachments"""
     mail_attachments: set[Path] = field(factory=set)
 
 
 @define(slots=False)
-class MailSamples(data.Samples[MailSample]):
+class MailSamples(Samples[MailSample]):
     """A collection of samples with mail attachments"""
     _mail_attachments: set[Path] = field(factory=set, init=False)
 
@@ -29,12 +29,13 @@ class MailSamples(data.Samples[MailSample]):
 
     @mail_attachments.setter
     def mail_attachments(self, value: Sequence[Path]) -> None:
-        self._mail_attachments = value
 
-@data.Sample.merge.register("mail_attachments")
-@data.Samples.merge.register("_mail_attachments")
+
+@Sample.merge.register("mail_attachments")
+@Samples.merge.register("_mail_attachments")
 def _(this, that):
     return this | that
+
 
 def _send_mail(
     *,
@@ -96,10 +97,8 @@ def _render_mail(subject, body, **kwargs):
 def _resolve_attachments(
     attachments: set[Path],
     logger: LoggerAdapter,
-) -> list[Path]:
-    _attachments = copy(attachments)
-
-    for attachment in _attachments:
+    samples: Samples,
+    config: Config,
         if attachment.is_symlink() or not attachment.is_absolute():
             attachment = attachment.resolve()
 
@@ -116,9 +115,9 @@ def _resolve_attachments(
 
 
 def _mail_hook(
-    samples: data.Samples[data.Sample],
+    samples: Samples,
     logger: LoggerAdapter,
-    config: cfg.Config,
+    config: Config,
     workdir: Path,
     when: Literal["start", "end"],
     **_,
@@ -163,11 +162,11 @@ def _mail_hook(
     return samples
 
 
-@modules.pre_hook(label="Send start mail", after="all")
+@pre_hook(label="Send start mail", after="all")
 def start_mail(
-    samples: data.Samples[data.Sample],
+    samples: Samples,
     logger: LoggerAdapter,
-    config: cfg.Config,
+    config: Config,
     workdir: Path,
     **_,
 ):
@@ -181,11 +180,11 @@ def start_mail(
     )
 
 
-@modules.post_hook(label="Send end mail", condition="always", after="all")
+@post_hook(label="Send end mail", condition="always", after="all")
 def end_mail(
-    samples: data.Samples[data.Sample],
+    samples: Samples,
     logger: LoggerAdapter,
-    config: cfg.Config,
+    config: Config,
     workdir: Path,
     **_,
 ):
