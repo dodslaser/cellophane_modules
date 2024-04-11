@@ -28,7 +28,7 @@ def _sync_callback(
             logger.warning(f"{dst} is missing")
 
 
-@modules.post_hook(label="Sync Output", condition="complete")
+@modules.post_hook(label="RSync Output", condition="complete")
 def rsync_results(
     samples: data.Samples,
     logger: LoggerAdapter,
@@ -58,18 +58,15 @@ def rsync_results(
         "dir": [],
     }
 
-    for output in samples.output.copy():
+    for output in samples.output:
         if not output.src.exists():
             logger.warning(f"{output.src} does not exist")
-            samples.output.remove(output)
             continue
         elif output.dst.exists() and not config.rsync.overwrite:
             logger.warning(f"{output.dst} already exists")
-            samples.output.remove(output)
             continue
         elif not output.dst.is_relative_to(config.resultdir):
-            logger.warning(f"{output.dst} is outside {config.rsync.base}")
-            samples.output.remove(output)
+            logger.warning(f"{output.dst} is outside {config.resultdir}")
             continue
 
         output.dst.parent.mkdir(parents=True, exist_ok=True)
