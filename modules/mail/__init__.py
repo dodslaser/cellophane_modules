@@ -9,6 +9,7 @@ from typing import Literal, Sequence
 from attrs import define, field
 from cellophane import Config, Sample, Samples, post_hook, pre_hook
 from jinja2 import Environment
+from mistletoe import markdown
 
 
 @define(slots=False)
@@ -58,7 +59,7 @@ def _send_mail(
     if user and password:
         conn.login(user, password)
     msg = EmailMessage()
-    msg.set_content(body)
+    msg.set_content(body, subtype="html")
     msg["Subject"] = subject
     msg["From"] = from_addr
     msg["To"] = ", ".join(to_addr) if isinstance(to_addr, list) else to_addr
@@ -83,15 +84,12 @@ def _send_mail(
 
 
 def _render_mail(subject, body, **kwargs):
-    subject = Environment().from_string(subject).render(**kwargs)
-    body = Environment().from_string(body).render(**kwargs)
-
     body_template = Environment().from_string(body)
     subject_template = Environment().from_string(subject)
 
-    subject = subject_template.render(**kwargs)
-    body = body_template.render(**kwargs)
-    return subject, body
+    subject_ = subject_template.render(**kwargs)
+    body_ = markdown(body_template.render(**kwargs))
+    return subject_, body_
 
 
 def _resolve_attachments(

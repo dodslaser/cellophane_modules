@@ -18,7 +18,7 @@ properties:
       cc_addr:
         type: array
         description: "Default list of CC recipients"
-      
+
       start:
         type: object
         properties:
@@ -29,14 +29,22 @@ properties:
           body:
             type: string
             description: "Body of the mail (jinja2 template)"
+            secret: true
             default: |
-              {{ analysis }} has started for {{ samples.unique_ids|length }} sample(s).
-              
-              The following samples are being analyzed:
-              {% for id in samples.unique_ids %}
-              {{ id }}
-              {%- endfor %}
-      
+              # 🧪 {{ config.analysis }}
+
+              Analysis has started for {{ samples.unique_ids|length }} sample(s).
+
+              🔎 The following samples are being analyzed:
+              |      ID     |  Run(s)  |
+              | ----------- | -------- |
+              {%- for id_, group in samples.split(by="id") %}
+              | `{{ id_ }}` |
+              {%- for sample in group -%}
+              `{{ sample.run }}`{% if not loop.last %}, {% endif %}
+              {%- endfor -%} |
+              {%- endfor -%}
+
       end:
         type: object
         properties:
@@ -46,22 +54,40 @@ properties:
             default: "{{ analysis }} finished"
           body:
             type: string
-            description: "Body of the mail (jinja2 template)"
+            description: "Body of the mail (jinja2 template, supports markdown)"
+            secret: true
             default: |
-              {{ analysis }} has finished processing {{ samples.unique_ids|length }} sample(s).
-              {% if samples.failed|length > 0 %}
+              # 🧪 {{ config.analysis }}
+
+              {{ samples.unique_ids|length }} sample(s) have been processed.
+
+              {% if samples.failed -%}
               ❗️ Analysis failed for the following samples:
-              {% for id in samples.failed.unique_ids %}
-              {{ id }}
+              |      ID     |  Run(s)  |
+              | ----------- | -------- |
+              {%- for id_, group in samples.failed.split(by="id") %}
+              | `{{ id_ }}` |
+              {%- for sample in group -%}
+              `{{ sample.run }}`{% if not loop.last %}, {% else %} | {% endif %}
+              {%- endfor -%}
               {%- endfor %}
-              {% endif %}
-              {%- if samples.complete|length > 0 %}
+              📋 See attached log for more information
+              {% endif -%}
+
+              {%- if samples.complete -%}
               ✅ Analysis completed successfully for the following samples:
-              {% for id in samples.complete.unique_ids %}
-              {{ id }}
+
+              |      ID     |  Run(s)  |
+              | ----------- | -------- |
+              {%- endif -%}
+              {%- for id_, group in samples.complete.split(by="id") %}
+              | `{{ id_ }}` |
+              {%- for sample in group -%}
+              `{{ sample.run }}`{% if not loop.last %}, {% else %} | {% endif %}
+              {%- endfor -%}
               {%- endfor %}
-              {% endif %}
-      
+
+              {%- endif -%}
       smtp:
         type: object
         required:
@@ -85,5 +111,3 @@ properties:
             type: string
             description: "SMTP password"
             secret: true
-
-    
