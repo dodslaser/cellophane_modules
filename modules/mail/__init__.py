@@ -15,12 +15,14 @@ from mistletoe import markdown
 @define(slots=False)
 class MailSample(Sample):
     """A sample with mail attachments"""
+
     mail_attachments: set[Path] = field(factory=set)
 
 
 @define(slots=False)
 class MailSamples(Samples[MailSample]):
     """A collection of samples with mail attachments"""
+
     _mail_attachments: set[Path] = field(factory=set, init=False)
 
     @property
@@ -30,6 +32,7 @@ class MailSamples(Samples[MailSample]):
 
     @mail_attachments.setter
     def mail_attachments(self, value: Sequence[Path]) -> None:
+        self._mail_attachments = {*value}
 
 
 @Sample.merge.register("mail_attachments")
@@ -50,7 +53,7 @@ def _send_mail(
     cc_addr: list[str] | str | None = None,
     user: str | None = None,
     password: str | None = None,
-    attachments: list[Path] | None = None,
+    attachments: set[Path] | None = None,
     **_,
 ) -> None:
     conn = SMTP(host, port)
@@ -93,23 +96,37 @@ def _render_mail(subject, body, **kwargs):
 
 
 def _resolve_attachments(
-    attachments: set[Path],
+    attachments: Sequence[str],
     logger: LoggerAdapter,
     samples: Samples,
     config: Config,
+) -> set[Path]:
+    attachments_ = set()
+    for sample in samples:
+        attachments_ |= {
+            Path(
+                a.format(
+                    sample=sample,
+                    samples=samples,
+                    config=config,
+                )
+            )
+            for a in attachments
+        }
+
+    for attachment in attachments_.copy():
         if attachment.is_symlink() or not attachment.is_absolute():
             attachment = attachment.resolve()
 
-    for attachment in attachments:
         if attachment.is_dir():
             logger.warning(f"Attachment {attachment} is a directory")
-            _attachments.remove(attachment)
-        
+            attachments_.remove(attachment)
+
         elif not attachment.is_file():
             logger.warning(f"Attachment {attachment} is not a file")
-            _attachments.remove(attachment)
+            attachments_.remove(attachment)
 
-    return _attachments
+    return attachments_
 
 
 def _mail_hook(
@@ -128,13 +145,31 @@ def _mail_hook(
         subject, body = _render_mail(
             subject=config.mail[when].subject,
             body=config.mail[when].body,
-            analysis=config.analysis,
             samples=samples,
+            config=config,
         )
+
         attachments = _resolve_attachments(
-            attachments=samples.mail_attachments,
+            attachments=samples.mail_attachments | {*config.mail[when].attachments},
             logger=logger,
-        ) if when == "end" else []
+            samples=samples,
+            config=config,
+        )
+
+        if when == "end":
+            attachments |= _resolve_attachments(
+                attachments=config.mail[when].attachments_complete,
+                logger=logger,
+                samples=samples.complete,
+                config=config,
+            )
+
+            attachments |= _resolve_attachments(
+                attachments=config.mail[when].attachments_failed,
+                logger=logger,
+                samples=samples.failed,
+                config=config,
+            )
 
         logger.debug(f"Subject: {subject}")
         logger.debug(f"From: {config.mail.from_addr}")

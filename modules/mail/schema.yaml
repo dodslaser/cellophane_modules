@@ -31,7 +31,7 @@ properties:
             description: "Body of the mail (jinja2 template)"
             secret: true
             default: |
-              # 🧪 {{ config.analysis }}
+              # {{ config.analysis }}
 
               Analysis has started for {{ samples.unique_ids|length }} sample(s).
 
@@ -44,6 +44,12 @@ properties:
               `{{ sample.run }}`{% if not loop.last %}, {% endif %}
               {%- endfor -%} |
               {%- endfor -%}
+          attachments:
+            type: array
+            description: "List of files to attach"
+            items:
+              type: string
+            default: []
 
       end:
         type: object
@@ -57,7 +63,7 @@ properties:
             description: "Body of the mail (jinja2 template, supports markdown)"
             secret: true
             default: |
-              # 🧪 {{ config.analysis }}
+              # {{ config.analysis }}
 
               {{ samples.unique_ids|length }} sample(s) have been processed.
 
@@ -79,7 +85,6 @@ properties:
 
               |      ID     |  Run(s)  |
               | ----------- | -------- |
-              {%- endif -%}
               {%- for id_, group in samples.complete.split(by="id") %}
               | `{{ id_ }}` |
               {%- for sample in group -%}
@@ -88,6 +93,25 @@ properties:
               {%- endfor %}
 
               {%- endif -%}
+          attachments:
+            type: array
+            description: "List of files to attach"
+            items:
+              type: string
+            default: []
+          attachments_complete:
+            type: array
+            description: "List of files to attach if there are complete samples"
+            items:
+              type: string
+            default: []
+          attachments_failed:
+            type: array
+            description: "List of files to attach if there are failed samples"
+            items:
+              type: string
+            default: ["{config.logdir}/{config.analysis}.{config.tag}.log"]
+
       smtp:
         type: object
         required:
