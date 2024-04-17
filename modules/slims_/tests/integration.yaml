@@ -1,6 +1,6 @@
 - id: slims_not_configured
   external:
-    ../cellophane_modules/slims: modules/slims
+    ..: modules/slims
   args:
     --workdir: work
   logs:
@@ -9,22 +9,20 @@
 - &slims_fetch
   id: slims_fetch
   external:
-    ../cellophane_modules/slims: modules/slims
+    ..: modules/slims
 
   mocks:
-    _cellophane_module_slims.Slims.fetch:
-      kwargs:
-        return_value:
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: 1337}
-            cntn_fk_originalContent: {value: 1337}
-            pk:
-              !!python/object/apply:unittest.mock.MagicMock
-              kwds:
-                return_value: 1337
-
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: 1337}
+          cntn_fk_originalContent: {value: 1337}
+          pk:
+            !!python/object/apply:unittest.mock.MagicMock
+            kwds:
+              return_value: 1337
 
   args:
     --workdir: work
@@ -36,11 +34,11 @@
 
   logs:
   - Found 1 SLIMS samples
-  - Found completed bioinformatics for 1337
+  - Checking SLIMS for completed samples
+  - 1337 already completed - Skipping
 
 - <<: *slims_fetch
   id: slims_fetch_derived
-
   args:
     --workdir: work
     --slims_username: "DUMMY"
@@ -49,14 +47,15 @@
     --slims_find_criteria: "cntn_Dummy equals 1 -> cntn_Dummy equals 2"
     --slims_check_criteria: "cntn_fk_contentType equals 22"
   logs:
+  - Found 1 SLIMS samples
   - Checking SLIMS for completed samples
-  - Found completed bioinformatics for 1337
+  - 1337 already completed - Skipping
 
 
 - &slims_augment
   id: slims_augment
   external:
-    ../cellophane_modules/slims: modules/slims
+    ..: modules/slims
   structure:
     samples.yaml: |
       - id: a
@@ -69,24 +68,23 @@
       a: a
       b: b
   mocks:
-    _cellophane_module_slims.Slims.fetch:
-      kwargs:
-        return_value:
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: a}
-            cntn_cstm_Key: {value: VALID}
-            cntn_cstm_Json: {value: '{"key": "value"}'}
-            cntn_cstm_Files: {value: ["input/a"]}
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: a}
+          cntn_cstm_Key: {value: VALID}
+          cntn_cstm_Json: {value: '{"key": "value"}'}
+          cntn_cstm_Files: {value: ["input/a"]}
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: b}
+          cntn_cstm_Key: {value: VALID}
+          cntn_cstm_Json: {value: '{"key": "value"}'}
+          cntn_cstm_Files: {value: ["input/b"]}
 
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: b}
-            cntn_cstm_Key: {value: VALID}
-            cntn_cstm_Json: {value: '{"key": "value"}'}
-            cntn_cstm_Files: {value: ["input/b"]}
   args:
     --workdir: work
     --samples_file: samples.yaml
@@ -97,6 +95,8 @@
     --slims_map: "files=cntn_cstm_Files,meta.key=cntn_cstm_Key,meta.json=json:cntn_cstm_Json.key"
   logs:
   - Augmenting existing samples with info from SLIMS
+  - Found 1 SLIMS records(s) for a
+  - Unable to find SLIMS record for b
 
 - <<: *slims_augment
   id: slims_augment_multi_match
@@ -107,27 +107,26 @@
       a_1: a
       a_2: a
   mocks:
-    _cellophane_module_slims.Slims.fetch:
-      kwargs:
-        return_value:
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: a}
-            cntn_cstm_Files: {value: ["input/a_1"]}
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: a}
+          cntn_cstm_Files: {value: ["input/a_1"]}
 
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: a}
-            cntn_cstm_Files: {value: ["input/a_2"]}
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: a}
+          cntn_cstm_Files: {value: ["input/a_2"]}
   logs:
   - Augmenting existing samples with info from SLIMS
   - Found multiple SLIMS records for a
 
 - id: slims_derive
   external:
-    ../cellophane_modules/slims: modules/slims
+    ..: modules/slims
 
   structure:
     modules:
@@ -139,7 +138,6 @@
           for sample in samples:
             if sample.id == "fail":
               sample.fail("DUMMY")
-
     samples.yaml: |
       - id: pass
         files:
@@ -147,21 +145,22 @@
       - id: fail
         files:
         - input/fail
-    
     input:
       pass: pass
       fail: fail
-
   mocks:
-    _cellophane_module_slims.Slims.add: ~
-    _cellophane_module_slims.Record.update: ~
-    _cellophane_module_slims.Slims.fetch:
-      kwargs:
-        return_value:
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: a}
+    _cellophane_module_slims.src.util.Slims.add:
+      new: !!python/object/apply:slims_.tests.add_factory []
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: pass}
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: fail}
   args:
     --workdir: work
     --samples_file: samples.yaml
@@ -174,15 +173,15 @@
         cntn_fk_location=83,
         cntn_cstm_SecondaryAnalysisState={sample.state},
         cntn_status=10
-  
   logs:
   - Creating derived records
   - Setting SLIMS samples to running
-
+  - Marking pass as complete
+  - Marking fail as failed
 
 - id: slims_map
   external:
-    ../cellophane_modules/slims: modules/slims
+    ..: modules/slims
 
   structure:
     modules:
@@ -199,6 +198,7 @@
           for sample in samples:
             logger.debug(f"{sample.meta.key=}")
             logger.debug(f"{sample.meta.json=}")
+            logger.debug(f"{sample.meta.deep.nested.key=}")
             logger.debug(f"{sample.field=}")
 
     samples.yaml: |
@@ -208,31 +208,28 @@
       - id: b
         files:
         - input/b
-    
+
     input:
       a: a
       b: b
 
   mocks:
-    _cellophane_module_slims.Slims.add: ~
-    _cellophane_module_slims.Record.update: ~
-    _cellophane_module_slims.Slims.fetch:
-      kwargs:
-        return_value:
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: a}
-            cntn_cstm_Key: {value: Value_A}
-            cntn_cstm_Json: {value: '{"key": "Json_A"}'}
-            cntn_cstm_Field: {value: "Field_A"}
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: b}
-            cntn_cstm_Key: {value: Value_B}
-            cntn_cstm_Json: {value: '{"key": "Json_B"}'}
-            cntn_cstm_Field: {value: "Field_B"}
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: a}
+          cntn_cstm_Key: {value: Value_A}
+          cntn_cstm_Json: {value: '{"key": "Json_A"}'}
+          cntn_cstm_Field: {value: "Field_A"}
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: b}
+          cntn_cstm_Key: {value: Value_B}
+          cntn_cstm_Json: {value: '{"key": "Json_B"}'}
+          cntn_cstm_Field: {value: "Field_B"}
   args:
     --log_level: DEBUG
     --workdir: work
@@ -241,53 +238,193 @@
     --slims_password: "DUMMY"
     --slims_url: 'DUMMY'
     --slims_find_criteria: ""
-    --slims_map: "meta.key=cntn_cstm_Key,meta.json=json:cntn_cstm_Json.key,field=cntn_cstm_Field"
-  
+    --slims_map: "meta.key=cntn_cstm_Key,meta.json=json:cntn_cstm_Json.key,meta.deep.nested.key=cntn_cstm_Key,field=cntn_cstm_Field"
+
   logs:
   - sample.meta.key='Value_A'
   - sample.meta.json='Json_A'
+  - sample.meta.deep.nested.key='Value_A'
   - sample.field='Field_A'
   - sample.meta.key='Value_B'
+  - sample.meta.deep.nested.key='Value_B'
   - sample.meta.json='Json_B'
   - sample.field='Field_B'
 
-- id: slims_no_records
+- id: slims_map_invalid_field
   external:
-    ../cellophane_modules/slims: modules/slims
+    ..: modules/slims
+
+  structure:
+    samples.yaml: |
+      - id: a
+        files:
+        - input/a
+    input:
+      a: a
 
   mocks:
-    _cellophane_module_slims.Slims.fetch:
-      kwargs:
-        return_value: []
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: a}
+  args:
+    --log_level: DEBUG
+    --workdir: work
+    --samples_file: samples.yaml
+    --slims_username: "DUMMY"
+    --slims_password: "DUMMY"
+    --slims_url: 'DUMMY'
+    --slims_find_criteria: ""
+    --slims_map: "INVALID=cntn_cstm_Key"
+
+  logs:
+  - "Unhandled exception: KeyError(\"Unable to map 'INVALID' to field in sample\")"
+
+  exception: SystemExit(1)
+
+- id: slims_invalid_derived_container
+  external:
+    ..: modules/slims
+
+  structure:
+    samples.yaml: |
+      - id: a
+        files:
+        - input/a
+        derived: INVALID
+    input:
+      a: a
+
+  args:
+    --log_level: DEBUG
+    --workdir: work
+    --samples_file: samples.yaml
+    --slims_username: "DUMMY"
+    --slims_password: "DUMMY"
+    --slims_url: 'DUMMY'
+    --slims_find_criteria: ""
+
+  logs:
+    - "Unhandled exception: ValueError(\"Expected 'None|list' for 'derived', got 'INVALID'\")"
+
+  exception: SystemExit(1)
+
+- id: slims_invalid_derived
+  external:
+    ..: modules/slims
+
+  structure:
+    samples.yaml: |
+      - id: a
+        files:
+        - input/a
+        derived:
+          - INVALID
+          - ALSO_INVALID
+    input:
+      a: a
+
+  args:
+    --log_level: DEBUG
+    --workdir: work
+    --samples_file: samples.yaml
+    --slims_username: "DUMMY"
+    --slims_password: "DUMMY"
+    --slims_url: 'DUMMY'
+    --slims_find_criteria: ""
+
+  logs:
+    - "Unhandled exception: ValueError(\"Expected 'list[tuple[Record|None, dict]' for 'derived', got ['INVALID', 'ALSO_INVALID']\")"
+
+  exception: SystemExit(1)
+
+
+- id: slims_invalid_record
+  external:
+    ..: modules/slims
+
+  structure:
+    samples.yaml: |
+      - id: a
+        files:
+        - input/a
+        record: INVALID
+    input:
+      a: a
+
+  args:
+    --log_level: DEBUG
+    --workdir: work
+    --samples_file: samples.yaml
+    --slims_username: "DUMMY"
+    --slims_password: "DUMMY"
+    --slims_url: 'DUMMY'
+    --slims_find_criteria: ""
+
+  logs:
+    - "Unhandled exception: ValueError(\"Expected 'NoneType' or 'Record' for 'record', got 'INVALID'\")"
+
+  exception: SystemExit(1)
+
+- id: slims_invalid_state
+  external:
+    ..: modules/slims
+
+  structure:
+    samples.yaml: |
+      - id: a
+        files:
+        - input/a
+        state: INVALID
+    input:
+      a: a
+
+  args:
+    --log_level: DEBUG
+    --workdir: work
+    --samples_file: samples.yaml
+    --slims_username: "DUMMY"
+    --slims_password: "DUMMY"
+    --slims_url: 'DUMMY'
+    --slims_find_criteria: ""
+
+  logs:
+    - "Unhandled exception: ValueError(\"'state' must be one of 'novel', 'running', 'complete', 'error', got 'INVALID'\")"
+
+  exception: SystemExit(1)
+
+
+- id: slims_no_records
+  external:
+    ..: modules/slims
+
+  mocks:
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value: []
   args:
     --workdir: work
     --slims_username: "DUMMY"
     --slims_password: "DUMMY"
     --slims_url: 'DUMMY'
     --slims_find_criteria: ""
-  
+
   logs:
     - No SLIMS samples found
 
 
 - id: slims_by_id
   external:
-    "..": modules/slims
+    ..: modules/slims
 
   mocks:
-    _cellophane_module_slims.Slims.fetch:
-      kwargs:
-        return_value:
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_fk_contentType: {value: 22}
-            cntn_id: {value: a}
-            pk:
-              !!python/object/apply:unittest.mock.MagicMock
-              kwds:
-                return_value: 1337
-            slims_api: !!python/object/apply:unittest.mock.MagicMock
-              args: ~
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: a}
   args:
     --workdir: work
     --slims_username: "DUMMY"
@@ -295,14 +432,14 @@
     --slims_url: 'DUMMY'
     --slims_find_criteria: ""
     --slims_id: a
-  
+
   logs:
   - Fetching samples from SLIMS by ID
   - Found 1 SLIMS samples
 
 - id: slims_update_dry_run
   external:
-    ../cellophane_modules/slims: modules/slims
+    ..: modules/slims
   structure:
     samples.yaml: |
       - id: a
@@ -311,12 +448,11 @@
     input:
       a: a
   mocks:
-    _cellophane_module_slims.Slims.fetch:
-      kwargs:
-        return_value:
-        - !!python/object/apply:test_slims.RecordMock
-          kwds:
-            cntn_id: {value: a}
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_id: {value: a}
   args:
     --workdir: work
     --samples_file: samples.yaml
@@ -330,7 +466,64 @@
         cntn_fk_location=83,
         cntn_cstm_SecondaryAnalysisState={sample.state},
         cntn_status=10
-  
+
   logs:
   - Dry run - Not adding derived records
   - Dry run - Not updating SLIMS
+
+
+- id: slims_merge
+  external:
+    ..: modules/slims
+
+  structure:
+    modules:
+      a.py: |
+        from cellophane import runner, post_hook
+
+        @runner()
+        def a(samples, **kwargs):
+          return samples
+
+        @runner()
+        def b(samples, **kwargs):
+          return samples
+
+        @post_hook()
+        def check(samples, logger, **kwargs):
+          for sample in samples:
+            logger.debug(f"{type(sample.record)=}")
+            logger.debug(f"{sample.derived=}")
+            logger.debug(f"{sample.state=}")
+            logger.debug(f"{sample._connection=}")
+
+
+
+    samples.yaml: |
+      - id: a
+        files:
+        - input/a
+    input:
+      a: a
+
+  mocks:
+    _cellophane_module_slims.src.util.Slims.fetch:
+      return_value:
+      - !!python/object/apply:slims_.tests.RecordMock
+        kwds:
+          cntn_fk_contentType: {value: 22}
+          cntn_id: {value: a}
+  args:
+    --log_level: DEBUG
+    --workdir: work
+    --samples_file: samples.yaml
+    --slims_username: "DUMMY"
+    --slims_password: "DUMMY"
+    --slims_url: 'DUMMY'
+    --slims_find_criteria: ""
+
+  logs:
+    - type(sample.record)=<class 'unittest.mock.RecordMock'>
+    - sample.derived=[]
+    - sample.state='error'
+    - sample._connection=None

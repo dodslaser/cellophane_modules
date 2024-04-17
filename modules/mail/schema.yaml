@@ -25,7 +25,7 @@ properties:
           subject:
             type: string
             description: "Subject of the mail (jinja2 template)"
-            default: "{{ analysis }} started"
+            default: "{{ config.analysis }} started"
           body:
             type: string
             description: "Body of the mail (jinja2 template)"
@@ -57,7 +57,7 @@ properties:
           subject:
             type: string
             description: "Subject of the mail (jinja2 template)"
-            default: "{{ analysis }} finished"
+            default: "{{ config.analysis }} finished"
           body:
             type: string
             description: "Body of the mail (jinja2 template, supports markdown)"
