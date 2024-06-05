@@ -2,7 +2,7 @@
   external:
     ..: modules/unpack
   mocks:
-    _cellophane_module_unpack.src.util.sleep: ~
+    modules.unpack.src.util.sleep: ~
   structure:
     modules:
       a.py: |
@@ -32,7 +32,7 @@
   external:
     ..: modules/unpack
   mocks:
-    _cellophane_module_unpack.src.util.sleep: ~
+    modules.unpack.src.util.sleep: ~
   structure:
     modules:
       a.py: |
@@ -62,7 +62,7 @@
   external:
     ..: modules/unpack
   mocks:
-    _cellophane_module_unpack.src.util.sleep: ~
+    modules.unpack.src.util.sleep: ~
   structure:
     modules:
       a.py: |
@@ -94,7 +94,7 @@
   external:
     ..: modules/unpack
   mocks:
-    _cellophane_module_unpack.src.util.sleep: ~
+    modules.unpack.src.util.sleep: ~
   structure:
     modules:
       a.py: |
@@ -126,7 +126,7 @@
   external:
     ..: modules/unpack
   mocks:
-    _cellophane_module_unpack.src.util.sleep: ~
+    modules.unpack.src.util.sleep: ~
   structure:
     modules:
       a.py: |
@@ -155,7 +155,7 @@
   external:
     ..: modules/unpack
   mocks:
-    _cellophane_module_unpack.src.util.sleep: ~
+    modules.unpack.src.util.sleep: ~
   structure:
     modules:
       a.py: |
@@ -185,7 +185,7 @@
   external:
     ..: modules/unpack
   mocks:
-    _cellophane_module_unpack.src.util.sleep: ~
+    modules.unpack.src.util.sleep: ~
   structure:
     modules:
       a.py: |

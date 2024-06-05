@@ -47,7 +47,7 @@
   external:
     ..: modules/mail
   mocks:
-    _cellophane_module_mail.src.util.SMTP: ~
+    modules.mail.src.util.SMTP: ~
   args:
     --samples_file: samples.yaml
     --workdir: work
@@ -83,7 +83,7 @@
   external:
     ..: modules/mail
   mocks:
-    _cellophane_module_mail.src.util.SMTP: ~
+    modules.mail.src.util.SMTP: ~
   args:
     --workdir: work
     --tag: DUMMY
@@ -101,7 +101,7 @@
   external:
     ..: modules/mail
   mocks:
-    _cellophane_module_mail.src.util.SMTP: ~
+    modules.mail.src.util.SMTP: ~
   args:
     --workdir: work
     --tag: DUMMY
@@ -114,7 +114,7 @@
   external:
     ..: modules/mail
   mocks:
-    _cellophane_module_mail.src.util.SMTP: ~
+    modules.mail.src.util.SMTP: ~
   structure:
     modules:
       a.py: |
