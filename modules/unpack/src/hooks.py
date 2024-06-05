@@ -3,7 +3,7 @@ from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
 
-from cellophane import Config, Executor, Samples, pre_hook
+from cellophane import Cleaner, Config, Executor, Samples, pre_hook
 from mpire.async_result import AsyncResult
 
 from .extractors import Extractor, PetageneExtractor, SpringExtractor
@@ -20,6 +20,7 @@ def unpack(
     config: Config,
     logger: LoggerAdapter,
     executor: Executor,
+    cleaner: Cleaner,
     **_,
 ) -> Samples:
     """Extract petagene fasterq files."""
@@ -43,12 +44,15 @@ def unpack(
                 idx=idx,
                 logger=logger,
                 path=path,
+                cleaner=cleaner,
             ),
             error_callback=partial(
                 error_callback,
                 sample=sample,
                 logger=logger,
                 path=path,
+                extractor=extractor,
+                cleaner=cleaner,
             ),
         ):
             results.append(result)

@@ -5,7 +5,7 @@ from logging import LoggerAdapter
 from pathlib import Path
 from time import sleep
 
-from cellophane import data
+from cellophane import Cleaner, Sample
 
 from .extractors import Extractor
 
@@ -15,10 +15,11 @@ def callback(
     /,
     extractor: Extractor,
     timeout: int,
-    sample: data.Sample,
+    sample: Sample,
     idx: int,
     logger: LoggerAdapter,
     path: Path,
+    cleaner: Cleaner,
 ) -> None:
     del result  # Unused
 
@@ -37,6 +38,7 @@ def callback(
     for extracted_path in extracted_paths:
         logger.debug(f"Extracted {extracted_path.name}")
         sample.files.insert(idx, extracted_path)
+        cleaner.register(extracted_path.resolve(), ignore_outside_root=True)
 
     if path in sample.files:
         sample.files.remove(path)
@@ -45,10 +47,14 @@ def callback(
 def error_callback(
     exception: Exception,
     /,
-    sample: data.Sample,
+    sample: Sample,
     logger: LoggerAdapter,
     path: Path,
+    extractor: Extractor,
+    cleaner: Cleaner,
 ) -> None:
     logger.error(f"Failed to extract {path.name}: {exception!r}")
     if path in sample.files:
         sample.files.remove(path)
+    for extracted_path in extractor.extracted_paths(path):
+        cleaner.register(extracted_path.resolve(), ignore_outside_root=True)
