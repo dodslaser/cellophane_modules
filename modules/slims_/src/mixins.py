@@ -1,108 +1,170 @@
 """Module for getting samples from SLIMS"""
 
+from contextlib import suppress
 from functools import reduce
-from typing import Literal
+from warnings import warn
 
-from attrs import Attribute, define, field, fields_dict
+from attrs import Attribute, define, field
 from attrs.setters import validate
-from cellophane import cfg, data, util
+from cellophane import Config, Sample, Samples
+from cellophane.src.data import Container
+from cellophane.src.util import map_nested_keys
 from slims.slims import Record, Slims
 
-from .util import get_field, get_records
+from .util import get_field, get_records, get_fields_from_sample
 
 
 @define(slots=False)
-class SlimsSample(data.Sample):
+class SlimsSample(Sample):
     """A sample container with SLIMS integration"""
 
-    derived: list[tuple[Record, dict]] | None = field(default=None, on_setattr=validate)
-    record: Record | None = field(default=None, on_setattr=validate)
-    # FIXME: Rename to slims_state as a property which checks `self.failed`
-    state: Literal["novel", "running", "complete", "error"] = field(
-        default="novel", on_setattr=validate
+    record: Record | None = field(
+        default=None,
+        on_setattr=validate,
     )
-    _connection: Slims | None = field(default=None, init=False)
+    _derived: dict[str, tuple[Record, dict]] | None = field(
+        default=None,
+        on_setattr=validate,
+    )
+    _connection: Slims | None = field(
+        default=None,
+        init=False,
+    )
 
-    @classmethod
-    def from_record(cls: data.Sample, record: Record, config: cfg.Config, **kwargs):
-        """Create a sample from a SLIMS fastq record"""
+    def matches_record(
+        self,
+        record: Record,
+        map_: dict,
+        match: list[str] | None = None,
+    ):
+        """Check if the record matches the sample"""
 
-        _sample = cls(
-            id=record.cntn_id.value,
-            state=kwargs.pop("state", "novel"),
-            **kwargs,
-        )
+        keys: list[list[str]] = [k.split(".") for k in match or []] + [["id"]]
+        c_map = Container(map_)
+        matches_ = False
+        for key in keys:
+            with suppress(KeyError, AttributeError):
+                r_value = get_field(record, c_map[key])
+                s_value = reduce(getattr, key, self)
+                if r_value != s_value:
+                    matches_ = False
+                    break
+                else:
+                    matches_ = True
 
-        _map = config.slims.get("map", {})
-        _keys = {*util.map_nested_keys(_map)} - {(key,) for key in kwargs}
+        return matches_
+
+    def map_from_record(
+        self,
+        record: Record,
+        map_: dict,
+        map_ignore: list[str] | None = None,
+    ):
+        """Map fields from a SLIMS record to the sample"""
+        _map_ignore = map_ignore or []
+        _keys = map_nested_keys(map_)
+        c_map = Container(map_)
         try:
             for key in _keys:
-                _field = reduce(lambda x, y: x[y], key, _map)
-                _value = get_field(record, _field)
-                if key[0] == "meta":
-                    _sample.meta[key[1:]] = _value
-                elif key[0] in fields_dict(cls):
-                    node = reduce(getattr, key[:-1], _sample)
-                    setattr(node, key[-1], _value)
+                if key in _map_ignore:
+                    continue
+                value = get_field(record, c_map[key])
+                if isinstance(self[key[0]], Container):
+                    self[key[0]][key[1:]] = value
                 else:
-                    raise KeyError
+                    node = reduce(getattr, key[:-1], self)
+                    setattr(node, key[-1], value)
+        except (KeyError, AttributeError):
+            warn(f"Unable to map '{'.'.join(key)}' to field in sample")
         except Exception as exc:
-            raise KeyError(
-                f"Unable to map '{'.'.join(key)}' to field in sample"
-            ) from exc
+            warn(
+                "Unhandled exception when mapping "
+                f"'{'.'.join(key)}' to field in sample: {exc!r}"
+            )
+        else:
+            self.record = record
 
-        _sample.record = record
+    @classmethod
+    def from_record(cls: Sample, record: Record, config: Config, **kwargs):
+        """Create a sample from a SLIMS fastq record"""
+
+        _sample = cls(id=record.cntn_id.value, **kwargs)
+        _sample.map_from_record(
+            record,
+            map_=config.slims.get("map"),
+            map_ignore=[(key,) for key in kwargs],
+        )
         return _sample
 
-    def update_derived(
-        self,
-        config: cfg.Config,
-    ):
-        """Update/add derived records for the sample"""
-        if not self.derived:
-            self.derived = [(None, key_map) for key_map in config.slims.derive]
-        if self.record:
-            for idx, (record, key_map) in enumerate(self.derived):
-                fields = {
-                    key: (
-                        value.format(sample=self) if isinstance(value, str) else value
-                    )
-                    for key, value in key_map.items()
-                } | {
-                    "cntn_id": self.record.cntn_id.value,
-                    "cntn_fk_originalContent": self.pk,
-                    "cntn_fk_user": config.slims.username,
-                }
-                if record:
-                    self.derived[idx] = (record.update(fields), key_map)
-                elif self.connection:
-                    self.derived[idx] = (
-                        self.connection.add("Content", fields),
-                        key_map,
-                    )
+    def sync_record(self, config: Config):
+        """Update the record with the sample fields"""
+        if not self.record:
+            warn("No record to update")
+            return
 
-    @derived.validator
+        if not config.slims.map:
+            warn("No values mapped to SLIMS fields")
+            return
+
+        keys = [
+            part.split(".") for key in map_nested_keys(config.slims.map) for part in key
+        ]
+        if fields := get_fields_from_sample(
+            self, config.slims.map, keys, config.slims.sync
+        ):
+            self.record.update(fields)
+
+    def sync_derived(self, config: Config):
+        """Update derived records in SLIMS with the mapped fields from the sample"""
+        if self.record is None or self.connection is None:
+            warn("No SLIMS record to derive from")
+            return
+
+        if not self._derived:
+            self._derived = {
+                name: (None, map_) for name, map_ in config.slims.derive.items() if map_
+            }
+        for name, (record, map_) in self._derived.items():
+            fields = {
+                field_: value.format(sample=self) if isinstance(value, str) else value
+                for field_, value in map_.items()
+            }
+            if record is None:
+                updated_record = self.connection.add(
+                    "Content",
+                    fields
+                    | {
+                        "cntn_id": self.record.cntn_id.value,
+                        "cntn_fk_originalContent": self.pk,
+                        "cntn_fk_user": config.slims.username,
+                    },
+                )
+            else:
+                updated_record = record.update(fields)
+
+            self._derived[name] = (updated_record, map_)
+
+    @_derived.validator
     def _validate_derived(
         self,
         attribute: Attribute,
-        value: list[tuple[Record | None, dict]] | None,
+        value: dict[str, tuple[Record | None, dict]] | None,
     ):
-        if value is not None:
-            if not isinstance(value, list):
-                raise ValueError(
-                    f"Expected 'None|list' for '{attribute.name}', got '{value}'"
-                )
-            elif not all(
+        if value is not None and not (
+            isinstance(value, dict)
+            and all(
                 isinstance(v, tuple)
+                and isinstance(k, str)
                 and len(v) == 2
                 and (isinstance(v[0], Record) or v[0] is None)
                 and isinstance(v[1], dict)
-                for v in value
-            ):
-                raise ValueError(
-                    "Expected 'list[tuple[Record|None, dict]' "
-                    f"for '{attribute.name}', got {value}"
-                )
+                for k, v in value.items()
+            )
+        ):
+            raise ValueError(
+                "Expected 'dict[str, tuple[Record|None, dict]]' "
+                f"for '{attribute.name}', got {value}"
+            )
 
     @record.validator
     def _validate_record(self, attribute: Attribute, value: Record | None):
@@ -110,23 +172,6 @@ class SlimsSample(data.Sample):
             raise ValueError(
                 "Expected 'NoneType' or 'Record' for "
                 f"'{attribute.name}', got '{value}'"
-            )
-
-    @state.validator
-    def _validate_state(
-        self,
-        attribute: Attribute,
-        value: Literal[
-            "novel",
-            "running",
-            "complete",
-            "error",
-        ],
-    ):
-        if value not in ["novel", "running", "complete", "error"]:
-            raise ValueError(
-                f"'{attribute.name}' must be one of "
-                f"'novel', 'running', 'complete', 'error', got '{value}'"
             )
 
     @property
@@ -147,42 +192,33 @@ class SlimsSample(data.Sample):
 
         return self._connection
 
-    def __reduce__(self) -> str | tuple:
+    def __getstate__(self) -> dict:
         """Remove open connection before pickle"""
         self._connection = None
-        return data.Sample.__reduce__(self)
+        return super().__getstate__()
 
 
-@data.Sample.merge.register("record")
+@Sample.merge.register("record")
 def _(this, _):
     return this
 
 
-@data.Sample.merge.register("_connection")
+@Sample.merge.register("_connection")
 def _(*_):
     return None
 
 
-@data.Sample.merge.register("state")
-def _(this, that):
-    return "error" if any(s != "complete" for s in (this, that)) else "complete"
-
-
-@data.Sample.merge.register("derived")
+@Sample.merge.register("_derived")
 def _(this, that):
     if not this or that is None:
-        return (this or []) + (that or [])
+        return (this or {}) | (that or {})
 
 
-class SlimsSamples(data.Samples):
+class SlimsSamples(Samples):
     """A list of sample containers with SLIMS integration"""
 
     @classmethod
-    def from_records(
-        cls,
-        records: list[Record],
-        config: cfg.Config,
-    ) -> "SlimsSamples":
+    def from_records(cls, records: list[Record], config: Config) -> "SlimsSamples":
         """Get samples from SLIMS records"""
         return cls(
             [
@@ -197,7 +233,7 @@ class SlimsSamples(data.Samples):
     def from_criteria(
         cls,
         criteria: str,
-        config: cfg.Config,
+        config: Config,
         connection: Slims | None = None,
         **kwargs,
     ) -> "SlimsSamples":
@@ -209,22 +245,19 @@ class SlimsSamples(data.Samples):
             password=config.slims.password,
         )
         records = get_records(
-            string_criteria=criteria,
+            criteria=criteria,
             connection=_connection,
             **kwargs,
         )
 
         return cls.from_records(records, config)
 
-    def update_derived(
-        self,
-        config: cfg.Config,
-    ) -> None:
+    def sync_derived(self, config: Config) -> None:
         """Update derived records in SLIMS"""
         for sample in self:
-            sample.update_derived(config)
+            sample.sync_derived(config)
 
-    def set_state(self, value: Literal["novel", "running", "complete", "error"]):
-        """Set the state of the samples"""
+    def sync_records(self, config: Config) -> None:
+        """Update the record with the sample fields"""
         for sample in self:
-            sample.state = value
+            sample.sync_record(config)

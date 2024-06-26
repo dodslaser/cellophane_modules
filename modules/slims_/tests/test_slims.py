@@ -3,9 +3,12 @@ from pathlib import Path
 import slims_
 from cellophane.src.testing import parametrize_from_yaml
 from pytest import mark, param, raises
+from pytest_mock import MockerFixture
 from ruamel.yaml import YAML
+from slims.slims import Slims
 
 ROOT = Path(__file__).parent
+
 
 class Test_integration:
     @staticmethod
@@ -17,22 +20,48 @@ class Test_integration:
 class Test_criteria:
     @staticmethod
     @mark.parametrize(
-        "criteria,slims,exception,kwargs",
+        "criteria,parsed,unnested,resolved,exception,records,kwargs",
         [
             param(
                 d["criteria"],
-                d.get("slims"),
+                d.get("parsed"),
+                d.get("unnested"),
+                d.get("resolved"),
                 d.get("exception"),
+                d.get("records"),
                 d.get("kwargs", {}),
                 id=d["id"],
             )
             for d in YAML(typ="unsafe").load_all((ROOT / "criteria.yaml").read_text())
         ],
     )
-    def test_criteria(criteria, slims, exception, kwargs):
+    def test_criteria(
+        mocker: MockerFixture,
+        criteria,
+        parsed,
+        unnested,
+        resolved,
+        exception,
+        records,
+        kwargs,
+    ):
+        mocker.patch("slims.slims.Slims.fetch", new=slims_.tests.fetch_factory(records or []))
+        conn = Slims("DUMMY", url="DUMMY", username="DUMMY", password="DUMMY")
         if exception:
             with raises(exception):
-                slims_.parse_criteria(criteria, **kwargs)
+                parsed_ = slims_.parse_criteria(criteria, **kwargs)
+                unnested_ = slims_.unnest_criteria(parsed_, **kwargs)
+                slims_.validate_criteria(unnested_, connection=conn)
+                resolved_ = slims_.resolve_criteria(unnested_, connection=conn, **kwargs)
         else:
-            parsed = slims_.parse_criteria(criteria, **kwargs)
-            assert [c.to_dict() for c in parsed] == slims
+            parsed_ = slims_.parse_criteria(criteria, **kwargs)
+            unnested_ = slims_.unnest_criteria(parsed_)
+            slims_.validate_criteria(unnested_, connection=conn)
+            resolved_ = slims_.resolve_criteria(unnested_, connection=conn)
+
+            if parsed is not None:
+                assert parsed_.to_dict() == parsed
+            if unnested is not None:
+                assert unnested_.to_dict() == unnested
+            if resolved is not None:
+                assert resolved_.to_dict() == resolved

@@ -1,26 +1,58 @@
 """Module for getting samples from SLIMS"""
 
-from copy import deepcopy
+from datetime import datetime, timedelta
 from logging import LoggerAdapter
+from typing import Any, Sequence
+from warnings import warn
 
-from attrs import fields_dict
-from cellophane import Samples, cfg, data, modules
+from cellophane import Samples, Config, pre_hook, post_hook
+from humanfriendly import parse_timespan
+from slims.internal import Record
 from slims.slims import Slims
 
-from .mixins import SlimsSamples
+from .mixins import SlimsSample, SlimsSamples
 from .util import get_records
 
 
-@modules.pre_hook(label="SLIMS Fetch", before=["hcp_fetch", "slims_derive"])
+def _augment_sample(
+    sample: SlimsSample,
+    records: Sequence[Record],
+    match: list[str] | None = None,
+    map_: dict[str, Any] | None = None,
+):
+    """Augment existing samples with SLIMS records."""
+    _map = {"id": "cntn_id"} | (map_ or {})
+
+    matching_record = None
+    for record in records:
+        if sample.matches_record(record, _map, match):
+            if matching_record is not None:
+                warn(f"Multiple records match sample '{sample.id}'")
+                return
+            matching_record = record
+
+    if matching_record is None:
+        warn(f"No records match sample '{sample.id}'")
+        return
+
+    sample.map_from_record(matching_record, _map)
+
+
+@pre_hook(label="SLIMS Fetch", before=["hcp_fetch", "slims_derive"])
 def slims_fetch(
-    samples: data.Samples,
-    config: cfg.Config,
+    samples: Samples,
+    config: Config,
     logger: LoggerAdapter,
     **_,
 ) -> SlimsSamples | None:
     """Load novel samples from SLIMS."""
     if any(w not in config.slims for w in ["url", "username", "password"]):
         logger.warning("SLIMS connection not configured")
+        return None
+
+    criteria: str
+    if not (criteria := config.slims.get("criteria")):
+        logger.warning("No SLIMS criteria - Skipping fetch")
         return None
 
     slims_connection = Slims(
@@ -30,157 +62,80 @@ def slims_fetch(
         password=config.slims.password,
     )
 
-    slims_ids: list[str] | None = None
     if samples:
         logger.info("Augmenting existing samples with info from SLIMS")
-        slims_ids = [s.id for s in samples]
-
-    elif config.slims.get("id"):
-        logger.info("Fetching samples from SLIMS by ID")
-        slims_ids = config.slims.id
-
-    records = get_records(
-        string_criteria=config.slims.find_criteria,
-        connection=slims_connection,
-        slims_id=slims_ids,
-        max_age=config.slims.novel_max_age,
-        unrestrict_parents=config.slims.unrestrict_parents,
-    )
-
-    if not records:
-        logger.warning("No SLIMS samples found")
-        return None
-
-    if samples:
-        slims_samples = samples.from_records(records, config)
-        for sample in deepcopy(samples):
-            matches = [
-                slims_sample
-                for slims_sample in slims_samples
-                if sample.id == slims_sample.id
-                and all(
-                    sample.meta.get(k) == slims_sample.meta.get(k) for k in sample.meta
-                )
-            ]
-
-            if not matches:
-                logger.warning(f"Unable to find SLIMS record for {sample.id}")
-                continue
-
-            elif len(matches) > 1 and not config.slims.allow_duplicates:
-                logger.warning(f"Found multiple SLIMS records for {sample.id}")
-                continue
-
-            else:
-                logger.debug(f"Found {len(matches)} SLIMS records(s) for {sample.id}")
-
-            sample_kwargs = {
-                k: v
-                for k, f in fields_dict(sample.__class__).items()
-                if k not in ("id", "state", "uuid", "record", "derived")
-                and (v := getattr(sample, k))
-                != (getattr(f.default, "factory", lambda: f.default)())  # pylint: disable=cell-var-from-loop
-            }
-            for match in matches:
-                match_sample = sample.from_record(match.record, config, **sample_kwargs)
-                samples.insert(samples.index(sample), match_sample)
-
-            samples.remove(sample)
-        return samples
+        criteria = f"({criteria}) and cntn_id one_of {' '.join(s.id for s in samples)}"
 
     else:
-        logger.debug(f"Found {len(records)} SLIMS samples")
-        if "check_criteria" not in config.slims:
-            logger.info("No SLIMS check criteria - Skipping check")
-            return samples.from_records(records, config)
-
-        logger.info("Checking SLIMS for completed samples")
-        check = get_records(
-            string_criteria=config.slims.check_criteria,
-            connection=slims_connection,
-            derived_from=records,
+        logger.info("Fetching novel samples from SLIMS")
+        min_date = datetime.now() - timedelta(
+            seconds=parse_timespan(config.slims.novel.max_age)
         )
+        # SLIMS expects ISO 8601 timestamps
+        criteria = (
+            f"({criteria}) and cntn_createdOn greater_than {min_date.isoformat()}"
+        )
+        if (novel_criteria := config.slims.novel.get("criteria")) is not None:
+            criteria = f"({criteria}) and ({novel_criteria})"
 
-        original_ids = [r.cntn_id.value for r in records]
-        records = [
-            record
-            for record in records
-            if record.pk() not in [b.cntn_fk_originalContent.value for b in check]
-        ]
+    records = get_records(
+        criteria=criteria,
+        connection=slims_connection,
+    )
+    if not records:
+        logger.warning("No SLIMS records found")
+        return None
 
-        completed = set(original_ids) - {r.cntn_id.value for r in records}
-        logger.info(f"Skipping {len(completed)} previously completed samples")
-        for sid in completed:
-            logger.debug(f"{sid} already completed - Skipping")
-
+    if not samples:
+        logger.info(f"Found {len(records)} novel SLIMS samples")
         return samples.from_records(records, config)
-
-
-@modules.pre_hook(label="SLIMS Derive", after=["slims_fetch"])
-def slims_derive(
-    samples: SlimsSamples,
-    config: cfg.Config,
-    logger: LoggerAdapter,
-    **_,
-) -> SlimsSamples:
-    """Add derived content to SLIMS samples"""
-    if "derive" not in config.slims:
-        return samples
-    elif config.slims.dry_run:
-        logger.debug("Dry run - Not adding derived records")
-        return samples
-
-    logger.info("Creating derived records")
-    samples.update_derived(config)
+    for sample in samples:
+        _augment_sample(
+            sample=sample,
+            records=records,
+            map_=config.slims.map,
+            match=config.slims.match,
+        )
     return samples
 
 
-@modules.pre_hook(label="SLIMS Mark Running", after="all")
-def slims_running(
-    samples: SlimsSamples,
-    config: cfg.Config,
-    logger: LoggerAdapter,
-    **_,
-) -> SlimsSamples:
-    """Add derived content to SLIMS samples"""
-    samples.set_state("running")
-    if "derive" not in config.slims:
-        return samples
-    elif config.slims.dry_run:
-        logger.debug("Dry run - Not updating SLIMS")
-        return samples
-
-    logger.info("Setting SLIMS samples to running")
-    samples.update_derived(config)
-    return samples
-
-
-@modules.post_hook(label="SLIMS Update Derived")
-def slims_update(
-    config: cfg.Config,
-    samples: SlimsSamples,
-    logger: LoggerAdapter,
-    **_,
-) -> Samples:
-    """Update SLIMS samples and derived records."""
-    if "derive" not in config.slims:
-        return samples
-    elif config.slims.dry_run:
+def _sync_hook(config: Config, samples: SlimsSamples, logger: LoggerAdapter):
+    if config.slims.dry_run:
         logger.info("Dry run - Not updating SLIMS")
         return samples
 
-    if complete := samples.complete:
-        logger.info(f"Marking {len(complete)} samples as complete")
-        for sample in complete:
-            logger.debug(f"Marking {sample.id} as complete")
-        complete.set_state("complete")
-        complete.update_derived(config)
+    if config.slims.sync:
+        logger.info("Syncing fields to SLIMS record(s)")
+        samples.sync_records(config)
+    else:
+        logger.debug("No fields to sync to SLIMS record(s)")
 
-    if failed := samples.failed:
-        logger.warning(f"Marking {len(failed)} samples as failed")
-        for sample in failed:
-            logger.debug(f"Marking {sample.id} as failed")
-        failed.set_state("error")
-        failed.update_derived(config)
+    if config.slims.derive:
+        logger.info("Updating derived record(s)")
+        samples.sync_derived(config)
+    else:
+        logger.debug("No derived records to update")
 
     return samples
+
+
+@pre_hook(label="SLIMS Sync (Pre)", after=["slims_fetch"])
+def slims_sync_pre(
+    samples: SlimsSamples,
+    config: Config,
+    logger: LoggerAdapter,
+    **_,
+) -> SlimsSamples:
+    """Add derived content to SLIMS samples"""
+    return _sync_hook(config, samples, logger)
+
+
+@post_hook(label="SLIMS Sync (Post)")
+def slims_sync_post(
+    samples: Samples,
+    config: Config,
+    logger: LoggerAdapter,
+    **_,
+) -> Samples:
+    """Add derived content to SLIMS samples"""
+    return _sync_hook(config, samples, logger)

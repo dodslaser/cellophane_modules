@@ -1,18 +1,28 @@
 """SLIMS module for cellophane."""
 
-from .src.hooks import slims_derive, slims_fetch, slims_running, slims_update
+from .src.hooks import slims_sync_pre, slims_sync_post, slims_fetch
 from .src.mixins import SlimsSample, SlimsSamples
-from .src.util import get_field, get_records, parse_criteria, split_criteria
+from .src.util import (
+    get_field,
+    get_records,
+    parse_criteria,
+    split_criteria,
+    unnest_criteria,
+    resolve_criteria,
+    validate_criteria,
+)
 
 __all__ = [
-    "slims_derive",
+    "slims_sync_pre",
+    "slims_sync_post",
     "slims_fetch",
-    "slims_running",
-    "slims_update",
     "get_field",
     "get_records",
     "parse_criteria",
     "split_criteria",
+    "unnest_criteria",
+    "resolve_criteria",
+    "validate_criteria",
     "SlimsSample",
     "SlimsSamples",
 ]
