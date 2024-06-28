@@ -14,14 +14,6 @@ from time import mktime
 logger = getLogger()
 
 
-def pformat(obj, console=None, markup=True, **kwargs):
-    """Rich pretty-formatted string for obj."""
-    console = console or get_console()
-    with console.capture() as capture:
-        console.print(obj, markup=markup)
-    return capture.get()
-
-
 class RecordMock(Mock):
     def __init__(self, **kwargs):
         defaults = {
