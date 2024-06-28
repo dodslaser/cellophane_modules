@@ -56,6 +56,7 @@ def nextflow(
         uuid=uuid,
         name=name,
         cpus=config.nextflow.threads,
+        conda_spec={**config.nextflow.conda_spec},
         **kwargs,
     )
 
