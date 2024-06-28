@@ -69,6 +69,10 @@ class Extractor:
             AsyncResult | None - The result of the extraction process,
                 or None if already extracted.
         """
+        if not compressed_path.exists():
+            logger.error(f"Compressed file {compressed_path.name} not found")
+            return None
+
         if [*self.extracted_paths(workdir, compressed_path)]:  # pylint: disable=using-constant-test
             logger.debug(f"Already extracted {compressed_path.name}")
             if callback is not None:
