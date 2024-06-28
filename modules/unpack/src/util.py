@@ -57,6 +57,7 @@ def error_callback(
     cleaner: Cleaner,
 ) -> None:
     logger.error(f"Failed to extract {path.name}: {exception!r}")
+    sample.fail(f"Failed to extract {path.name}")
     if path in sample.files:
         sample.files.remove(path)
     for extracted_path in extractor.extracted_paths(path):
