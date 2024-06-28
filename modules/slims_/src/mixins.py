@@ -11,7 +11,7 @@ from cellophane.src.data import Container
 from cellophane.src.util import map_nested_keys
 from slims.slims import Record, Slims
 
-from .util import get_field, get_records, get_fields_from_sample
+from .util import get_field, get_fields_from_sample, get_records
 
 
 @define(slots=False)

@@ -33,7 +33,10 @@ def callback(
         sleep(1)
 
     if not extracted_paths:
-        logger.error(f"Extracted files for {path.name} not found after {timeout} seconds")
+        logger.error(
+            f"Extracted files for {path.name} "
+            f"not found after {timeout} seconds"
+        )
 
     for extracted_path in extracted_paths:
         logger.debug(f"Extracted {extracted_path.name}")

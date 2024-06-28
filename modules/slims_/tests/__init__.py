@@ -1,15 +1,13 @@
+from datetime import datetime
 from functools import partial
-from json import dumps, loads
+from json import dumps
 from logging import getLogger
 from typing import Any
 from unittest.mock import Mock
 
 from cellophane import data
-from rich import get_console
 from slims.criteria import Criterion
 from slims.internal import Record
-from datetime import datetime
-from time import mktime
 
 logger = getLogger()
 
@@ -39,6 +37,7 @@ class RecordMock(Mock):
 
 def add_factory():
     def add(instance, type_, fields):
+        del instance  # Unused
         logger.debug("Mocking add to table '%s'", type_)
         for k, v in fields.items():
             logger.debug("FIELD %s: %s", k, v)
@@ -108,9 +107,7 @@ def _match_criteria(criteria: Criterion, record: RecordMock) -> Any:
             "fieldName": field,
             "value": value,
         }:
-            return (
-                str(value).lower() in str(getattr(record, field).value).lower()
-            )
+            return str(value).lower() in str(getattr(record, field).value).lower()
         case {
             "operator": "inSet",
             "fieldName": field,

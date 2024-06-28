@@ -88,6 +88,7 @@ class PetageneExtractor(
     script=Path(__file__).parent.parent / "scripts" / "petagene.sh",
 ):
     """Petagene extractor."""
+
     @staticmethod
     def extracted_paths(compressed_path: Path) -> Iterator[Path]:
         _base = compressed_path.name.partition(".")[0]
@@ -103,6 +104,7 @@ class SpringExtractor(
     conda_spec={"dependencies": ["spring >=1.1.1 <2.0.0"]},
 ):
     """Spring extractor."""
+
     @staticmethod
     def extracted_paths(compressed_path: Path) -> Iterator[Path]:
         _base = compressed_path.name.partition(".")[0]
