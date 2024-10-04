@@ -1,6 +1,8 @@
 """Module for fetching files from HCP."""
 
+from functools import partial
 from pathlib import Path
+from typing import Callable
 from uuid import UUID, uuid4
 
 from cellophane import cfg, executors
@@ -19,16 +21,18 @@ def nextflow(
     nxf_config: Path | None = None,
     nxf_work: Path | None = None,
     nxf_profile: str | None = None,
+    nxf_log: Path | None = None,
     ansi_log: bool = False,
     resume: bool = False,
     name: str = "nextflow",
     check: bool = True,
+    callback: Callable | None = None,
     **kwargs,
 ) -> tuple[AsyncResult, UUID]:
     """Submit a Nextflow job to SGE."""
 
-    uuid = uuid4()
-    _nxf_log = config.logdir / "nextflow" / f"{name}.{uuid.hex}.log"
+    uuid_ = uuid4()
+    _nxf_log = nxf_log or config.logdir / "nextflow" / f"{name}.{uuid_.hex}.log"
     _nxf_config = nxf_config or config.nextflow.get("config")
     _nxf_work = nxf_work or config.nextflow.get("workdir") or workdir / "nxf_work"
     _nxf_launch = workdir / "nxf_launch"
@@ -45,7 +49,7 @@ def nextflow(
         "-ansi-log false" if not ansi_log or config.nextflow.ansi_log else "",
         f"-work-dir {_nxf_work}",
         "-resume" if resume else "",
-        f"-with-report {config.logdir / 'nextflow' / f'{name}.{uuid.hex}.report.html'}",
+        f"-with-report {config.logdir / 'nextflow' / f'{name}.{uuid_.hex}.report.html'}",
         (f"-profile {_nxf_profile}" if _nxf_profile else ""),
         *args,
         env={
@@ -54,7 +58,7 @@ def nextflow(
             **(env or {}),
         },
         workdir=_nxf_launch,
-        uuid=uuid,
+        uuid=uuid_,
         name=name,
         cpus=config.nextflow.threads,
         **kwargs,

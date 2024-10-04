@@ -28,6 +28,7 @@ on:  # yamllint disable-line rule:truthy
 
 jobs:
   modules-semver:
+    name: Calculate semver change
     runs-on: ubuntu-latest
     outputs:
       next-tag: ${{ steps.semver.outputs.next }}

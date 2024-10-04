@@ -48,6 +48,7 @@ env:
 
 jobs:
   cache:
+    name: Restore cached result (${{ inputs.cellophane-tag }})
     runs-on: ubuntu-latest
     outputs:
       cache-hit: ${{ steps.cache.outputs.cache-hit }}
@@ -65,6 +66,7 @@ jobs:
       run: echo result=$(cat CACHE) | tee -a "$GITHUB_OUTPUT"
 
   pytest:
+    name: Run pytest (${{ inputs.cellophane-tag }})
     runs-on: ubuntu-latest
     needs: cache
     if: ${{ needs.cache.outputs.cache-hit != 'true' }}
@@ -77,28 +79,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.pr-head-sha }}
-      - name: install-poetry
-        run: pipx install poetry
-      - uses: actions/setup-python@v5
+      - uses: eifinger/setup-rye@v4
         with:
-          python-version: '3.11'
-          cache: 'poetry'
-          cache-dependency-path: '${{ inputs.path }}/poetry.lock'
-      - name: poetry-install
-        working-directory: ${{ inputs.path }}
-        run: poetry install
+          enable-cache: true
+          working-directory: ${{ inputs.path }}
       - name: install-cellophane
-        working-directory: ${{ inputs.path }}
-        run: poetry run pip install --force-reinstall git+https://github.com/${{ inputs.cellophane-repo }}.git@${{ inputs.cellophane-tag }}
+        working-directory: ${{ inputs.path  }}
+        run: |
+          rye sync
+          rye run uv pip install git+https://github.com/${{ inputs.cellophane-repo }}.git@${{ inputs.cellophane-tag }} --force-reinstall
       - name: pytest
         id: pytest
         timeout-minutes: 1
         env:
-          TERM: dumb
+          FORCE_COLOR: false
+          COLUMNS: 500
         working-directory: ${{ inputs.path }}
         run: |
           set +e
-          poetry run pytest --junit-xml=pytest.xml
+          rye run pytest --junit-xml=pytest.xml
           code=$?
           if [[ "$code" == "0" ]]; then
             echo ::notice::Tests passed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
@@ -121,9 +120,10 @@ jobs:
           commit: ${{ inputs.pr-head-sha }}
 
   support-json:
+    name: Generate support JSON (${{ inputs.cellophane-tag }})
     runs-on: ubuntu-latest
     needs: [cache, pytest]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !failure() }}
     steps:
     - name: generate-support-json
       run: |
