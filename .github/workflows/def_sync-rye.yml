@@ -10,7 +10,7 @@ on:
         type: string
         required: true
       version:
-        description: The version to pass to 'poetry version'
+        description: The version to pass to 'rye version'
         type: string
         default: ""
       head:
@@ -19,7 +19,7 @@ on:
         required: true
 
 jobs:
-  sync-poetry:
+  deps:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,28 +28,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.head }}
-      - name: install-poetry
-        run: pipx install poetry
+      - name: install-rye
+        run: pipx install rye
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: poetry
-          cache-dependency-path: ${{ inputs.path }}/poetry.lock
-      - name: poetry-version
-        run: poetry version -- ${{ inputs.version }}
-      - name: poetry-lock
-        run: poetry lock
-      # - name: poetry-export
-      #   run: |
-      #     poetry export \
-      #       --format=requirements.txt \
-      #       --output requirements.txt \
-      #       --without-hashes \
-      #       --without-urls
+      - name: rye-version
+        run: rye version -- ${{ inputs.version }}
+      - name: rye-lock
+        run: rye lock
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.module }}-poetry-files
+          name: ${{ inputs.module }}-meta
           path: |
             ${{ inputs.path }}/pyproject.toml
-            ${{ inputs.path }}/poetry.lock
-            ${{ inputs.path }}/requirements.txt
+            ${{ inputs.path }}/requirements.lock
+            ${{ inputs.path }}/requirements-dev.lock

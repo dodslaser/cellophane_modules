@@ -77,28 +77,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.pr-head-sha }}
-      - name: install-poetry
-        run: pipx install poetry
-      - uses: actions/setup-python@v5
+      - uses: eifinger/setup-rye@v4
         with:
-          python-version: '3.11'
-          cache: 'poetry'
-          cache-dependency-path: '${{ inputs.path }}/poetry.lock'
-      - name: poetry-install
+          enable-cache: true
+      - name: rye-sync
         working-directory: ${{ inputs.path }}
-        run: poetry install
+        run: rye sync
       - name: install-cellophane
         working-directory: ${{ inputs.path }}
-        run: poetry run pip install --force-reinstall git+https://github.com/${{ inputs.cellophane-repo }}.git@${{ inputs.cellophane-tag }}
+        run: rye run uv pip install --force-reinstall git+https://github.com/${{ inputs.cellophane-repo }}.git@${{ inputs.cellophane-tag }}
       - name: pytest
         id: pytest
         timeout-minutes: 1
         env:
-          TERM: dumb
+          FORCE_COLOR: false
+          COLUMNS: 500
         working-directory: ${{ inputs.path }}
         run: |
           set +e
-          poetry run pytest --junit-xml=pytest.xml
+          rye run pytest --junit-xml=pytest.xml
           code=$?
           if [[ "$code" == "0" ]]; then
             echo ::notice::Tests passed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}

@@ -8,17 +8,13 @@ on: # yamllint disable-line rule:truthy
         description: The HEAD to get changes from
         required: true
         type: string
-      base:
-        description: The base tag to compare against
-        required: true
-        type: string
       path:
         description: The path to include in the changelog
         required: true
         type: string
     outputs:
       changes:
-        description: "The changes between the two tags"
+        description: "Unreleased changes"
         value: "${{ jobs.changelog.outputs.changes }}"
 
 jobs:

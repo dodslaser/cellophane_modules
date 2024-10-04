@@ -1,0 +1,48 @@
+[project]
+name = "cellophane-modules"
+version = "1.0.0"
+description = ""
+authors = [{name = "dodslaser", email = "2969909+dodslaser@users.noreply.github.com"}]
+dependencies = []
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.coverage.run]
+concurrency = ["multiprocessing", "thread"]
+branch = true
+
+[tool.rye]
+managed = true
+virtual = true
+dev-dependencies = [
+    "mypy>=1.0.0,<2.0.0",
+    "black>=23.1.0,<24.0.0",
+    "isort>=5.12.0,<6.0.0",
+    "flake8>=6.0.0,<7.0.0",
+    "pytest-mock>=3.11.1,<4.0.0",
+    "pytest-clarity>=1.0.1,<2.0.0",
+    "pytest-cov>=4.1.0,<5.0.0",
+    "pylint>=3.0.2,<4.0.0",
+    "cellophane @ git+https://github.com/ClinicalGenomicsGBG/cellophane.git@dev",
+    "types-pygments>=2.18.0.20240506",
+    "types-colorama>=0.4.15.20240311",
+    "types-humanfriendly>=10.0.1.11",
+    "types-pywin32>=306.0.0.20240822",
+    "types-setuptools>=75.1.0.20240917",
+    "types-tqdm>=4.66.0.20240417",
+    "types-jinja2>=2.11.9",
+]
+
+[tool.rye.workspace]
+members = ["modules/*"]
+
+[[tool.mypy.overrides]]
+module = [
+    "drmaa2",
+    "cellophane.*",
+    "NGPIris.*",
+    "mistletoe",
+    "slims.*"
+]
+ignore_errors = true
+ignore_missing_imports = true
