@@ -32,7 +32,7 @@ To add a module to this repo, a minimal definition needs to be added to `modules
     "latest": "dev",
     "versions": {
       "dev": {
-        "tag": "dev",
+        "tag": "main",
         "cellophane": [">0.0.0"]
       }
     }

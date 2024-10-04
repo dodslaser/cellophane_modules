@@ -1,0 +1,47 @@
+on:
+  workflow_call:
+    inputs:
+      module:
+        description: The name of the module
+        type: string
+        required: true
+      path:
+        description: The working directory (must contain pyproject.toml)
+        type: string
+        required: true
+      version:
+        description: The version to pass to 'rye version'
+        type: string
+        default: ""
+      head:
+        description: The branch or tag to checkout
+        type: string
+        required: true
+
+jobs:
+  sync-rye:
+    name: Sync Rye metadata
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.path }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.head }}
+          sparse-checkout: ${{ inputs.path }}
+      - uses: eifinger/setup-rye@v4
+        with:
+          enable-cache: true
+          working-directory: ${{ inputs.path }}
+      - name: rye-version
+        run: rye version -- ${{ inputs.version }}
+      - name: rye-lock
+        run: rye lock
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.module }}-meta
+          path: |
+            ${{ inputs.path }}/pyproject.toml
+            ${{ inputs.path }}/requirements.lock
+            ${{ inputs.path }}/requirements-dev.lock

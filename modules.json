@@ -3,8 +3,10 @@
     "path": "modules/grid_engine/",
     "versions": {
       "dev": {
-        "tag": "dev",
-        "cellophane": [">0.0.0"]
+        "tag": "main",
+        "cellophane": [
+          ">0.0.0"
+        ]
       }
     }
   },
@@ -12,8 +14,10 @@
     "path": "modules/hcp/",
     "versions": {
       "dev": {
-        "tag": "dev",
-        "cellophane": [">0.0.0"]
+        "tag": "main",
+        "cellophane": [
+          ">0.0.0"
+        ]
       }
     }
   },
@@ -21,8 +25,10 @@
     "path": "modules/mail/",
     "versions": {
       "dev": {
-        "tag": "dev",
-        "cellophane": [">0.0.0"]
+        "tag": "main",
+        "cellophane": [
+          ">0.0.0"
+        ]
       }
     }
   },
@@ -30,8 +36,10 @@
     "path": "modules/nextflow/",
     "versions": {
       "dev": {
-        "tag": "dev",
-        "cellophane": [">0.0.0"]
+        "tag": "main",
+        "cellophane": [
+          ">0.0.0"
+        ]
       }
     }
   },
@@ -39,8 +47,10 @@
     "path": "modules/rsync/",
     "versions": {
       "dev": {
-        "tag": "dev",
-        "cellophane": [">0.0.0"]
+        "tag": "main",
+        "cellophane": [
+          ">0.0.0"
+        ]
       }
     }
   },
@@ -48,8 +58,10 @@
     "path": "modules/slims_/",
     "versions": {
       "dev": {
-        "tag": "dev",
-        "cellophane": [">0.0.0"]
+        "tag": "main",
+        "cellophane": [
+          ">0.0.0"
+        ]
       }
     }
   },
@@ -57,8 +69,10 @@
     "path": "modules/unpack/",
     "versions": {
       "dev": {
-        "tag": "dev",
-        "cellophane": [">0.0.0"]
+        "tag": "main",
+        "cellophane": [
+          ">0.0.0"
+        ]
       }
     }
   }

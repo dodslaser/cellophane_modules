@@ -7,7 +7,7 @@ permissions: read-all
 on: # yamllint disable-line rule:truthy
   pull_request_target:
     types: [opened, reopened, edited, synchronize]
-    branches: [dev, main]
+    branches: [main]
 
 
 concurrency:
