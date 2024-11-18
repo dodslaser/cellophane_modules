@@ -28,27 +28,27 @@ jobs:
         code=$? [[ "$code" != "0" ]] && exit $code
         echo releases=$releases | tee -a "$GITHUB_OUTPUT"
 
-  matrix:
-    name: module-matrix
+  modules:
+    name: modules
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.generate-matrix.outputs.matrix }}
+      modules: ${{ steps.list-modules.outputs.modules }}
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: -1
-    - name: generate-matrix
-      id: generate-matrix
+    - name: list-modules
+      id: list-modules
       run: |
-        matrix=$(jq 'to_entries | map({name: .key, path: .value.path})' modules.json)
+        modules_=$(jq 'to_entries | map({name: .key, path: .value.path})' modules.json)
         code=$?; [[ "$code" != "0" ]] && exit $code
-        echo matrix=$matrix | tee -a "$GITHUB_OUTPUT"
+        echo modules=$modules | tee -a "$GITHUB_OUTPUT"
 
   module-pr:
     name: module-pr
     uses: ./.github/workflows/def_module-pr.yml
-    needs: [matrix, cellophane-releases]
-    if: needs.matrix.outputs.matrix != '[]'
+    needs: [modules, cellophane-releases]
+    if: needs.modules.outputs.modules != '[]'
     permissions:
       pull-requests: write
       contents: write
@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.matrix.outputs.matrix) }}
+        include: ${{ fromJson(needs.modules.outputs.modules) }}
     with:
       module: ${{ matrix.name }}
       path: ${{ matrix.path }}

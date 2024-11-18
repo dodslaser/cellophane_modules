@@ -35,8 +35,27 @@ on:
         value: ${{ jobs.module-pr.outputs.pr-head-sha }}
 
 jobs:
+  detect-changes:
+    name: Detect changes in the module
+    runs-on: ubuntu-latest
+    outputs:
+      has-changes: ${{ steps.detect-changes.outputs.has-changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect-changes
+        run: |
+          git diff --error-code ${{ inputs.base }}..${{ inputs.head }} -- ${{ inputs.path }}
+          code=$?
+          if [[ $code ]]; then
+            echo has-changes=true | tee -a "$GITHUB_OUTPUT"
+          else
+            echo has-changes=false | tee -a "$GITHUB_OUTPUT"
+          fi
+
   semver:
     name: Calculate next version
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
     uses: ./.github/workflows/def_module-semver.yml
     with:
       module: ${{ inputs.module }}
@@ -52,7 +71,8 @@ jobs:
 
   sync-rye:
     uses: ./.github/workflows/def_sync-rye.yml
-    needs: semver
+    needs: [semver, detect-changes]
+    if: needs.detect-changes.outputs.has-changes == 'true'
     with:
       module: ${{ inputs.module }}
       head: ${{ inputs.head }}
@@ -60,7 +80,8 @@ jobs:
       version: ${{ needs.semver.outputs.next-version }}
 
   module-pr:
-    needs: [semver, sync-rye, changelog]
+    needs: [semver, sync-rye, changelog, detect-changes]
+    if: needs.detect-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -108,7 +129,8 @@ jobs:
 
   pytest-released:
     name: pytest-previous
-    needs: [semver, module-pr]
+    needs: [semver, module-pr, detect-changes]
+    if: needs.detect-changes.outputs.has-changes == 'true'
     uses: ./.github/workflows/def_pytest.yml
     permissions:
       checks: write
@@ -127,7 +149,8 @@ jobs:
 
   pytest-dev:
     name: pytest-latest
-    needs: [semver, module-pr]
+    needs: [semver, module-pr, detect-changes]
+    if: needs.detect-changes.outputs.has-changes == 'true'
     uses: ./.github/workflows/def_pytest.yml
     permissions:
       checks: write
@@ -144,9 +167,9 @@ jobs:
 
   update-module-json:
     name: update-module-json
-    needs: [pytest-released, pytest-dev, module-pr, semver]
+    needs: [pytest-released, pytest-dev, module-pr, semver, detect-changes]
+    if: ${{ !cancelled() }} && needs.detect-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() }}
     permissions:
       contents: write
     steps:
