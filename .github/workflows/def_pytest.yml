@@ -110,3 +110,4 @@ jobs:
       with:
         name: ${{ env.support_json}}
         path: ${{ env.support_json}}
+        retention-days: 1
