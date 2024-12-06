@@ -56,54 +56,53 @@ jobs:
     outputs:
       result: ${{ steps.pytest.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.pr-head-sha }}
-      - uses: eifinger/setup-rye@v4
-        with:
-          enable-cache: true
-          working-directory: ${{ inputs.path }}
-      - name: install-cellophane
-        working-directory: ${{ inputs.path  }}
-        run: |
-          rye sync
-          rye run uv pip install git+https://github.com/${{ inputs.cellophane-repo }}.git@${{ inputs.cellophane-tag }} --force-reinstall
-      - name: pytest
-        id: pytest
-        timeout-minutes: 1
-        env:
-          FORCE_COLOR: false
-          COLUMNS: 500
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.pr-head-sha }}
+    - uses: eifinger/setup-rye@v4
+      with:
         working-directory: ${{ inputs.path }}
-        run: |
-          set +e
-          rye run pytest --junit-xml=pytest.xml
-          code=$?
-          if [[ "$code" == "0" ]]; then
-            echo ::notice::Tests passed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
+    - name: install-cellophane
+      working-directory: ${{ inputs.path  }}
+      run: |
+        rye sync
+        rye run uv pip install git+https://github.com/${{ inputs.cellophane-repo }}.git@${{ inputs.cellophane-tag }} --force-reinstall
+    - name: pytest
+      id: pytest
+      timeout-minutes: 1
+      env:
+        FORCE_COLOR: false
+        COLUMNS: 500
+      working-directory: ${{ inputs.path }}
+      run: |
+        set +e
+        rye run pytest --junit-xml=pytest.xml
+        code=$?
+        if [[ "$code" == "0" ]]; then
+          echo ::notice::Tests passed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
           echo '"${{ inputs.cellophane-tag }}"' > ${{ env.support_json}}
           echo result=sucess | tee -a "$GITHUB_OUTPUT"
         elif [[ '${{ inputs.ignore-fail }}' == 'true' ]]; then
           echo ::notice::Ignoring test failures
           echo '"${{ inputs.cellophane-tag }}"' > ${{ env.support_json}}
           echo result=failure | tee -a "$GITHUB_OUTPUT"
-          elif [[ "$code" == "1" ]]; then
-            echo ::warning::Tests failed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
-            echo result=failure | tee -a "$GITHUB_OUTPUT"
-          elif [[ "$code" == "5" ]]; then
-            echo ::warning::No tests found for ${{ inputs.module }}
-            echo result=failure | tee -a "$GITHUB_OUTPUT"
-          else
-            echo ::error::Unexpected pytest exit code $code
-            echo result=failure | tee -a "$GITHUB_OUTPUT"
-          fi
+        elif [[ "$code" == "1" ]]; then
+          echo ::warning::Tests failed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
+          echo result=failure | tee -a "$GITHUB_OUTPUT"
+        elif [[ "$code" == "5" ]]; then
+          echo ::warning::No tests found for ${{ inputs.module }}
+          echo result=failure | tee -a "$GITHUB_OUTPUT"
+        else
+          echo ::error::Unexpected pytest exit code $code
+          echo result=failure | tee -a "$GITHUB_OUTPUT"
+        fi
         exit $code
 
-      - uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (!cancelled()) && inputs.publish-results }}
-        with:
-          files: ${{ inputs.path }}/pytest.xml
-          commit: ${{ inputs.pr-head-sha }}
+    - uses: EnricoMi/publish-unit-test-result-action@v2
+      if: ${{ (!cancelled()) && inputs.publish-results }}
+      with:
+        files: ${{ inputs.path }}/pytest.xml
+        commit: ${{ inputs.pr-head-sha }}
 
     - uses: actions/upload-artifact@v4
       if: ${{ (!cancelled()) && (steps.pytest.outputs.result != 'failure'  || inputs.ignore-fail) }}

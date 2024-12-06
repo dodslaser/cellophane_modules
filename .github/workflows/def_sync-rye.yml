@@ -32,7 +32,6 @@ jobs:
           sparse-checkout: ${{ inputs.path }}
       - uses: eifinger/setup-rye@v4
         with:
-          enable-cache: true
           working-directory: ${{ inputs.path }}
       - name: rye-version
         run: rye version -- ${{ inputs.version }}
