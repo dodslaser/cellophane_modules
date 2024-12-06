@@ -67,3 +67,13 @@ jobs:
       head: ${{ github.event.ref }}
       cellophane-repo: ClinicalGenomicsGBG/cellophane
       cellophane-releases: ${{ needs.cellophane-releases.outputs.releases }}
+
+  cleanup:
+    name: Cleanup artifacts
+    needs: module-pr
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - uses: geekyeggo/delete-artifact@v5
+      with:
+        name: "*"
