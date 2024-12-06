@@ -47,29 +47,9 @@ env:
   support_json: ${{ inputs.module }}-${{ inputs.cellophane-tag }}.support.json
 
 jobs:
-  cache:
-    name: Restore cached result (${{ inputs.cellophane-tag }})
-    runs-on: ubuntu-latest
-    outputs:
-      cache-hit: ${{ steps.cache.outputs.cache-hit }}
-      cache-primary-key: ${{ steps.cache.outputs.cache-primary-key }}
-      result: ${{ steps.result.outputs.result }}
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/cache/restore@v4
-      id: cache
-      with:
-        key: ${{ inputs.module }}-${{ hashFiles(inputs.path) }}-${{ inputs.version }}-${{ inputs.cellophane-repo }}-${{ inputs.cellophane-tag }}
-        path: CACHE
-    - name: result
-      id: result
-      run: echo result=$(cat CACHE) | tee -a "$GITHUB_OUTPUT"
-
   pytest:
     name: Run pytest (${{ inputs.cellophane-tag }})
     runs-on: ubuntu-latest
-    needs: cache
-    if: ${{ needs.cache.outputs.cache-hit != 'true' }}
     permissions:
       checks: write
       pull-requests: write
@@ -101,7 +81,12 @@ jobs:
           code=$?
           if [[ "$code" == "0" ]]; then
             echo ::notice::Tests passed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
-            echo result=${{ inputs.cellophane-tag }} | tee -a "$GITHUB_OUTPUT"
+          echo '"${{ inputs.cellophane-tag }}"' > ${{ env.support_json}}
+          echo result=sucess | tee -a "$GITHUB_OUTPUT"
+        elif [[ '${{ inputs.ignore-fail }}' == 'true' ]]; then
+          echo ::notice::Ignoring test failures
+          echo '"${{ inputs.cellophane-tag }}"' > ${{ env.support_json}}
+          echo result=failure | tee -a "$GITHUB_OUTPUT"
           elif [[ "$code" == "1" ]]; then
             echo ::warning::Tests failed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
             echo result=failure | tee -a "$GITHUB_OUTPUT"
@@ -112,6 +97,7 @@ jobs:
             echo ::error::Unexpected pytest exit code $code
             echo result=failure | tee -a "$GITHUB_OUTPUT"
           fi
+        exit $code
 
       - uses: EnricoMi/publish-unit-test-result-action@v2
         if: ${{ (!cancelled()) && inputs.publish-results }}
@@ -119,37 +105,8 @@ jobs:
           files: ${{ inputs.path }}/pytest.xml
           commit: ${{ inputs.pr-head-sha }}
 
-  support-json:
-    name: Generate support JSON (${{ inputs.cellophane-tag }})
-    runs-on: ubuntu-latest
-    needs: [cache, pytest]
-    if: ${{ !cancelled() && !failure() }}
-    steps:
-    - name: generate-support-json
-      run: |
-        if [[ '${{ needs.cache.outputs.result }}' == 'failure' ]]; then
-          echo ::warning::[CACHED] Tests failed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
-          echo '${{ needs.cache.outputs.result }}' | tee CACHE
-        elif [[ ! -z '${{ needs.cache.outputs.result }}' ]]; then
-          echo ::notice::[CACHED] Tests passed for ${{ inputs.module }} ${{ inputs.version }} with cellophane ${{ inputs.cellophane-tag }}
-          echo '"${{ needs.cache.outputs.result }}"' | tee ${{ env.support_json}} | tr -d '"' >> CACHE
-        elif [[ '${{ needs.pytest.outputs.result }}' != 'failure' ]]; then
-          echo '"${{ needs.pytest.outputs.result }}"' | tee ${{ env.support_json}} | tr -d '"' >> CACHE
-        else
-          echo 'failure' | tee CACHE
-        fi
-
-        if [[ '${{ inputs.ignore-fail }}' == 'true' ]]; then
-          echo ::notice::Ignoring test failures
-          echo '"${{ inputs.cellophane-tag }}"' | tee ${{ env.support_json}}
-        fi
-
     - uses: actions/upload-artifact@v4
-      if: ${{ (needs.cache.outputs.result != 'failure' && needs.pytest.outputs.result != 'failure') || inputs.ignore-fail }}
+      if: ${{ (!cancelled()) && (steps.pytest.outputs.result != 'failure'  || inputs.ignore-fail) }}
       with:
         name: ${{ env.support_json}}
         path: ${{ env.support_json}}
-    - uses: actions/cache/save@v4
-      with:
-        key: ${{ needs.cache.outputs.cache-primary-key }}
-        path: CACHE
