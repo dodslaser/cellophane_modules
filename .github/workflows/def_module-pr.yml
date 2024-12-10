@@ -170,7 +170,7 @@ jobs:
       generate-support-json: true
 
   pytest-dev:
-    name: Run pytest (cellophane dev)
+    name: Run pytest (cellophane@dev)
     needs: [detect-release-branch, semver, module-pr]
     if: inputs.has-changes == 'true' || needs.detect-release-branch.outputs.exists != 'true'
     uses: ./.github/workflows/def_pytest.yml
@@ -187,6 +187,25 @@ jobs:
       ignore-fail: true
       publish-results: true
       generate-support-json: true
+      check-fail: true
+
+  pytest-latest:
+    name: Run pytest (cellophane@latest)
+    needs: [detect-release-branch, semver, module-pr]
+    if: inputs.has-changes == 'true' || needs.detect-release-branch.outputs.exists != 'true'
+    uses: ./.github/workflows/def_pytest.yml
+    permissions:
+      checks: write
+      pull-requests: write
+    with:
+      pr-head-sha: ${{ needs.module-pr.outputs.pr-head-sha }}
+      module: ${{ inputs.module }}
+      path: ${{ inputs.path }}
+      version: ${{ needs.semver.outputs.next-version }}
+      cellophane-repo: ${{ inputs.cellophane-repo }}
+      cellophane-tag: latest
+      publish-results: true
+      check-fail: true
 
   update-module-json:
     name: Update modules.json

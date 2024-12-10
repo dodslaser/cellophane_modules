@@ -41,7 +41,12 @@ on: # yamllint disable-line rule:truthy
         type: string
         required: true
       ignore-fail:
-        description: Ignore test failures
+        description: Ignore test failures (when generating support JSON)
+        type: boolean
+        required: false
+        default: false
+      check-fail:
+        description: Report test failures as a check fail
         type: boolean
         required: false
         default: false
@@ -100,9 +105,12 @@ jobs:
           echo result=failure | tee -a "$GITHUB_OUTPUT"
         fi
 
+        [[ "${{ inputs.check-fail }}" == "true" ]] && exit $code
+
     - uses: EnricoMi/publish-unit-test-result-action@v2
       if: ${{ (!cancelled()) && inputs.publish-results }}
       with:
+        check_name: Test Results (cellophane@${{ inputs.cellophane-tag }})
         files: ${{ inputs.path }}/pytest.xml
         commit: ${{ inputs.pr-head-sha }}
 

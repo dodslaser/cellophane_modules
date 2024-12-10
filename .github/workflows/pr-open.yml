@@ -56,6 +56,8 @@ jobs:
       version: ${{ github.event.pull_request.head.sha }}
       cellophane-repo: ClinicalGenomicsGBG/cellophane
       cellophane-tag: latest
+      check-fail: true
+      publish-results: true
 
   pytest-dev:
     uses: ./.github/workflows/def_pytest.yml
@@ -73,6 +75,8 @@ jobs:
       version: ${{ github.event.pull_request.head.sha }}
       cellophane-repo: ClinicalGenomicsGBG/cellophane
       cellophane-tag: dev
+      check-fail: true
+      publish-results: true
 
   reviewdog-lint:
     name: Lint code
