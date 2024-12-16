@@ -14,6 +14,7 @@ jobs:
   cellophane-releases:
     name: Cellophane releases
     uses: ./.github/workflows/def_list-releases.yml
+    secrets: inherit
     with:
       repo: ClinicalGenomicsGBG/cellophane
 
@@ -27,7 +28,7 @@ jobs:
     name: Create or update release PR
     uses: ./.github/workflows/def_module-pr.yml
     needs: [modules, cellophane-releases]
-    if: needs.modules.outputs.modules != '[]'
+    if: needs.modules.outputs.changed_modules != '[]'
     permissions:
       pull-requests: write
       contents: write
@@ -54,5 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: geekyeggo/delete-artifact@v5
+      if: ${{ !env.ACT }}
       with:
         name: "*"

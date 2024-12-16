@@ -108,7 +108,7 @@ jobs:
         [[ "${{ inputs.check-fail }}" == "true" ]] && exit $code
 
     - uses: EnricoMi/publish-unit-test-result-action@v2
-      if: ${{ (!cancelled()) && inputs.publish-results }}
+      if: (!github.event.act && !cancelled() && inputs.publish-results)
       with:
         check_name: Test Results (cellophane@${{ inputs.cellophane-tag }})
         files: ${{ inputs.path }}/pytest.xml

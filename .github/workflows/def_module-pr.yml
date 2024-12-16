@@ -84,7 +84,7 @@ jobs:
   rebase-module-pr:
     name: Rebase PR
     needs: [detect-release-branch]
-    if: inputs.has-changes != 'true' && needs.detect-release-branch.outputs.exists == 'true'
+    if: (!github.event.act && inputs.has-changes != 'true' && needs.detect-release-branch.outputs.exists == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -103,7 +103,7 @@ jobs:
   module-pr:
     name: Create or update PR
     needs: [detect-release-branch, semver, sync-rye, changelog]
-    if: inputs.has-changes == 'true' || !(needs.detect-release-branch.outputs.exists == 'true')
+    if: (!github.event.act && (inputs.has-changes == 'true' || needs.detect-release-branch.outputs.exists != 'true'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -137,11 +137,7 @@ jobs:
         base: ${{ inputs.base }}
         labels: release
 
-    - name: comment-pr
-      if: steps.create-or-update-pr.outputs.pull-request-operation == 'created'
-      env:
-        GH_TOKEN: ${{ github.token }}
-        comment: |
+      if: (!github.event.act && steps.create-or-update-pr.outputs.pull-request-operation == 'created')
           # 🤖 \*bleep bloop\*
 
           This is a fully automated module PR. I will be automatically updated with any changes pushed to ${{ inputs.base }}.
@@ -246,6 +242,7 @@ jobs:
           $_modules
           EOF
       - name: git-commit
+        if: ${{ !env.ACT }}
         run: |
           git config --global user.email "<>"
           git config --global user.name "github-actions[bot]"

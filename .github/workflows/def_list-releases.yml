@@ -28,6 +28,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        releases=$(gh release list -L 5 -R ${{ inputs.repo }} --json tagName --jq '[.[].tagName]')
+        [[ ! -z "$ACT" ]] && /imagegeneration/installers/gh.sh
+        releases=$(gh release list -L 5 -R ${{ inputs.repo }} --json tagName --jq '[.[].[]]')
         code=$? [[ "$code" != "0" ]] && exit $code
         echo releases=$releases | tee -a "$GITHUB_OUTPUT"
