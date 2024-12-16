@@ -137,13 +137,17 @@ jobs:
         base: ${{ inputs.base }}
         labels: release
 
+    - uses: actions-ecosystem/action-create-comment@v1
       if: (!github.event.act && steps.create-or-update-pr.outputs.pull-request-operation == 'created')
+      with:
+        github_token: ${{ github.token }}
+        number: ${{ steps.create-or-update-pr.outputs.pull-request-number }}
+        body: |
           # 🤖 \*bleep bloop\*
 
           This is a fully automated module PR. I will be automatically updated with any changes pushed to ${{ inputs.base }}.
 
           When merged I will ~~achieve world domination~~ tag ${{ needs.semver.outputs.next-tag }}.
-      run: gh pr comment release/${{ inputs.module }} --body '${{ env.comment }}'
 
 
   pytest-released:
