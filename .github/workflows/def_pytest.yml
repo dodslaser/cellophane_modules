@@ -106,7 +106,11 @@ jobs:
           echo result=failure | tee -a "$GITHUB_OUTPUT"
         fi
 
-        [[ "${{ inputs.check-fail }}" == "true" ]] && exit $code
+        if [[ "${{ inputs.check-fail }}" == "true" ]]; then
+          exit $code
+        else
+          exit 0
+        fi
 
     - uses: EnricoMi/publish-unit-test-result-action@v2
       if: (!github.event.act && !cancelled() && inputs.publish-results)
