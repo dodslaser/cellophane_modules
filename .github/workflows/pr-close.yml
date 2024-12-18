@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   metadata:
-    if: (!github.event.act && startsWith(github.head_ref, 'release/') && github.event.pull_request.merged == 'true')
+    if: (!github.event.act && startsWith(github.head_ref, 'release/') && github.event.pull_request.merged)
     name: Cellect PR metadata
     runs-on: ubuntu-latest
     outputs:
@@ -30,7 +30,7 @@ jobs:
   publish-tag:
     name: Publish Tag
     runs-on: ubuntu-latest
-    if: (!github.event.act && github.event.pull_request.merged == 'true')
+    if: (!github.event.act && github.event.pull_request.merged)
     needs: metadata
     permissions:
       contents: write
