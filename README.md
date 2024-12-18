@@ -1,5 +1,10 @@
 # Cellophane Modules
 
+<p>
+<a href="https://github.com/ClinicalGenomicsGBG/cellophane_modules/actions/workflows/push-main.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ClinicalGenomicsGBG/cellophane_modules/push-main.yml?label=CI"></a>
+<a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
+</p>
+
 This is the main repo containing all public cellophane modules. Modules aim to be as generalized as possible for maximum reusability.
 
 ## Using a module
