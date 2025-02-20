@@ -17,7 +17,7 @@ on: # yamllint disable-line rule:truthy
         value: ${{ jobs.modules.outputs.changed_modules }}
       unchanged_modules:
         description: JSON array of names and paths for modules without changes
-        value: ${{ jobs.modules.outputs.changed_modules }}
+        value: ${{ jobs.modules.outputs.unchanged_modules }}
 
 jobs:
   modules:
