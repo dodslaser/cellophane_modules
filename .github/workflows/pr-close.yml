@@ -22,9 +22,11 @@ jobs:
     steps:
       - name: metadata
         id: metadata
+        env:
+          BODY: ${{ github.event.comment.body }}
         run: |
           for field in module path tag; do
-            sed -nE 's/.*<!-- ('${field}'="[^"]+") -->.*/\1/p' <<< '${{ github.event.pull_request.body }}' | tr -d '"' | tee -a "$GITHUB_OUTPUT"
+            sed -nE 's/.*<!-- ('${field}'="[^"]+") -->.*/\1/p' <<< "$BODY" | tr -d '"' | tee -a "$GITHUB_OUTPUT"
           done
 
   publish-tag:
