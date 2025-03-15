@@ -1,7 +1,8 @@
 ---
 name: Push to main
 
-permissions: read-all
+permissions:
+  contents: read
 
 on: # yamllint disable-line rule:truthy
   push:
@@ -30,11 +31,9 @@ jobs:
     needs: [modules, cellophane-releases]
     if: needs.modules.outputs.changed_modules != '[]'
     permissions:
-      pull-requests: write
       contents: write
+      pull-requests: write
       checks: write
-      issues: write
-      statuses: write
     strategy:
       fail-fast: false
       matrix:

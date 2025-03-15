@@ -1,6 +1,9 @@
 ---
 name: Calculate Semver
 
+permissions:
+  contents: read
+
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:

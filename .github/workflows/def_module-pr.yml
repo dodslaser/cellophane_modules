@@ -1,8 +1,7 @@
 name: Module PR
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 on:
   workflow_call:

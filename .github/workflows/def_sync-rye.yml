@@ -1,5 +1,8 @@
 name: Sync Rye metadata
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:

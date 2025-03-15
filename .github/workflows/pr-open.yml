@@ -3,8 +3,7 @@
 name: PR Open/Edit
 
 permissions:
-  checks: write
-  pull-requests: write
+  contents: read
 
 on: # yamllint disable-line rule:truthy
   pull_request:
