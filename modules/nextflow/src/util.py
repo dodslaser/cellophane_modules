@@ -38,6 +38,7 @@ def nextflow(
 
     _nxf_log.parent.mkdir(parents=True, exist_ok=True)
     _nxf_work.mkdir(parents=True, exist_ok=True)
+    _nxf_launch.mkdir(parents=True, exist_ok=True)
 
     result, uuid = executor.submit(
         str(_ROOT / "scripts" / "nextflow.sh"),
