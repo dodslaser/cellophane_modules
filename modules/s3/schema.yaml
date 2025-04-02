@@ -1,0 +1,16 @@
+type: object
+properties:
+  s3:
+    type: object
+    properties:
+      credentials:
+        type: array
+        items:
+          type: path
+        description: S3 credentials file(s)
+      parallel:
+        type: integer
+        description: Number of parallel S3 connections
+        default: 4
+    required:
+      - credentials
