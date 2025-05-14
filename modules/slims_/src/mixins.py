@@ -192,6 +192,15 @@ class SlimsSample(Sample):
 
         return self._connection
 
+    @property
+    def slims_state(self) -> str:
+        if self.failed:
+            return "error"
+        elif self.processed:
+            return "completed"
+        else:
+            return "running"
+
     def __getstate__(self) -> dict:
         """Remove open connection before pickle"""
         self._connection = None
