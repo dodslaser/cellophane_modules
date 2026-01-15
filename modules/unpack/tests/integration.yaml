@@ -6,12 +6,17 @@
   structure:
     modules:
       a.py: |
-        from cellophane import Executor
+        from cellophane import Executor, pre_hook
         from pathlib import Path
 
         class DummyExecutor(Executor, name="dummy"):
             def target(self, *args, env, **kwargs):
               Path(env["EXTRACTED_PATH"]).touch()
+
+        @pre_hook(after="all")
+        def check_outputs(samples, logger, **kwargs):
+            for sample in samples:
+                logger.info(f"{sample.id=} files={[str(f) for f in sample.files]}")
 
     samples.yaml: |
       - id: fasterq
@@ -23,9 +28,11 @@
     --workdir: work
     --samples_file: samples.yaml
     --executor_name: "dummy"
+    --tag: "fasterq"
   logs:
     - Extracting file.fasterq with petagene
     - Extracted file.fastq.gz
+    - sample.id='fasterq' files=['work/fasterq/unpack/file.fastq.gz']
 
 
 - id: unpack_spring
@@ -36,12 +43,17 @@
   structure:
     modules:
       a.py: |
-        from cellophane import Executor
+        from cellophane import Executor, pre_hook
         from pathlib import Path
 
         class DummyExecutor(Executor, name="dummy"):
             def target(self, *args, env, **kwargs):
               Path(env["EXTRACTED_PATH"]).touch()
+
+        @pre_hook(after="all")
+        def check_outputs(samples, logger, **kwargs):
+            for sample in samples:
+                logger.info(f"{sample.id=} files={[str(f) for f in sample.files]}")
 
     samples.yaml: |
       - id: spring
@@ -53,9 +65,11 @@
     --workdir: work
     --samples_file: samples.yaml
     --executor_name: "dummy"
+    --tag: "spring"
   logs:
     - Extracting file.spring with spring
     - Extracted file.fastq.gz
+    - sample.id='spring' files=['work/spring/unpack/file.fastq.gz']
 
 
 - id: unpack_spring_multi_a
@@ -66,7 +80,7 @@
   structure:
     modules:
       a.py: |
-        from cellophane import Executor
+        from cellophane import Executor, pre_hook
         from pathlib import Path
 
         class DummyExecutor(Executor, name="dummy"):
@@ -74,6 +88,12 @@
               base = env["EXTRACTED_PATH"].partition(".")[0]
               Path(base).with_suffix(".fastq.gz.1").touch()
               Path(base).with_suffix(".fastq.gz.2").touch()
+
+        @pre_hook(after="all")
+        def check_outputs(samples, logger, **kwargs):
+            for sample in samples:
+                logger.info(f"{sample.id=} files={[str(f) for f in sample.files]}")
+
 
     samples.yaml: |
       - id: spring
@@ -85,10 +105,12 @@
     --workdir: work
     --samples_file: samples.yaml
     --executor_name: "dummy"
+    --tag: "spring"
   logs:
     - Extracting file.spring with spring
     - Extracted file.1.fastq.gz
     - Extracted file.2.fastq.gz
+    - sample.id='spring' files=['work/spring/unpack/file.1.fastq.gz', 'work/spring/unpack/file.2.fastq.gz']
 
 
 - id: unpack_spring_multi_b
@@ -99,7 +121,7 @@
   structure:
     modules:
       a.py: |
-        from cellophane import Executor
+        from cellophane import Executor, pre_hook
         from pathlib import Path
 
         class DummyExecutor(Executor, name="dummy"):
@@ -107,6 +129,11 @@
               base = env["EXTRACTED_PATH"].partition(".")[0]
               Path(base).with_suffix(".1.fastq.gz").touch()
               Path(base).with_suffix(".2.fastq.gz").touch()
+
+        @pre_hook(after="all")
+        def check_outputs(samples, logger, **kwargs):
+            for sample in samples:
+                logger.info(f"{sample.id=} files={[str(f) for f in sample.files]}")
 
     samples.yaml: |
       - id: spring
@@ -118,10 +145,12 @@
     --workdir: work
     --samples_file: samples.yaml
     --executor_name: "dummy"
+    --tag: "spring"
   logs:
     - Extracting file.spring with spring
     - Extracted file.1.fastq.gz
     - Extracted file.2.fastq.gz
+    - sample.id='spring' files=['work/spring/unpack/file.1.fastq.gz', 'work/spring/unpack/file.2.fastq.gz']
 
 
 - id: unpack_exception

@@ -23,6 +23,7 @@
     --samples_file: samples.yaml
     --workdir: work
     --s3_credentials: credentials.json
+    --tag: "DUMMY"
   logs:
     - Fetched BACKUP from s3
 
@@ -89,24 +90,30 @@
     samples.yaml: |
       - id: A
         files:
-        - input/A
+        - input/A_1
+        - input/A_2
         s3_remote_keys:
-        - A
+        - A_1
+        - A_2
         s3_bucket: test-bucket
         s3_endpoint: DUMMY
       - id: B
         files:
-        - input/B
+        - input/B_1
+        - input/B_2
         s3_remote_keys:
-        - B
+        - B_1
+        - B_2
         s3_bucket: test-bucket
         s3_endpoint: DUMMY
     input:
-      A: A
-      B: B
+      A_1: A
+      A_2: A
+      B_1: B
+      B_2: B
   logs:
-    - sample.id='A' sample.s3_remote_keys=['A']
-    - sample.id='B' sample.s3_remote_keys=['B']
+    - sample.id='A' sample.s3_remote_keys=['A_1', 'A_2']
+    - sample.id='B' sample.s3_remote_keys=['B_1', 'B_2']
 
 - <<: *s3_test
   id: s3_length_missmatch
@@ -132,6 +139,13 @@
     modules:
       runner.py: |
         from cellophane import runner, post_hook, pre_hook
+
+        @pre_hook(after="all")
+        def ensure_files(samples, **_):
+            for sample in samples:
+                for f in sample.files:
+                    f.touch()
+
         @runner()
         def a(samples, **_):
             return samples
@@ -144,75 +158,36 @@
         def check(samples, logger, **_):
             for sample in samples:
               logger.info(f"{sample.id=} {sample.s3_remote_keys=}")
-
+              logger.info(f"{sample.id=} files={[str(f) for f in sample.files]}")
     samples.yaml: |
       - id: A
-        files:
-        - input/A_0
-        - input/A_1
-        - input/A_2
-        - input/A_3
-        - input/A_4
-        - input/A_5
-        - input/A_6
-        - input/A_7
-        - input/A_8
-        - input/A_9
-        s3_remote_keys:
-        - A_0
-        - A_1
-        - A_2
-        - A_3
-        - A_4
-        - A_5
-        - A_6
-        - A_7
-        - A_8
-        - A_9
+        files: [
+          input/A_0, input/A_1, input/A_2,
+          input/A_3, input/A_4, input/A_5,
+          input/A_6, input/A_7, input/A_8,
+          input/A_9
+        ]
+        s3_remote_keys: [A_0, A_1, A_2, A_3, A_4, A_5, A_6, A_7, A_8, A_9]
+        s3_bucket: test-bucket
+        s3_endpoint: DUMMY
       - id: B
-        files:
-        - input/B_0
-        - input/B_1
-        - input/B_2
-        - input/B_3
-        - input/B_4
-        - input/B_5
-        - input/B_6
-        - input/B_7
-        - input/B_8
-        - input/B_9
-        s3_remote_keys:
-        - B_0
-        - B_1
-        - B_2
-        - B_3
-        - B_4
-        - B_5
-        - B_6
-        - B_7
-        - B_8
-        - B_9
-    input:
-      A_0: A
-      A_1: A
-      A_2: A
-      A_3: A
-      A_4: A
-      A_5: A
-      A_6: A
-      A_7: A
-      A_8: A
-      A_9: A
-      B_0: B
-      B_1: B
-      B_2: B
-      B_3: B
-      B_4: B
-      B_5: B
-      B_6: B
-      B_7: B
-      B_8: B
-      B_9: B
+        files: [
+          input/B_0, input/B_1, input/B_2,
+          input/B_3, input/B_4, input/B_5,
+          input/B_6, input/B_7, input/B_8,
+          input/B_9
+        ]
+        s3_remote_keys: [B_0, B_1, B_2, B_3, B_4, B_5, B_6, B_7, B_8, B_9]
+        s3_bucket: test-bucket
+        s3_endpoint: DUMMY
+    credentials.json: |
+      {
+        "endpoint": "DUMMY",
+        "aws_access_key_id": "DUMMY",
+        "aws_secret_access_key": "DUMMY"
+      }
   logs:
     - sample.id='A' sample.s3_remote_keys=['A_0', 'A_1', 'A_2', 'A_3', 'A_4', 'A_5', 'A_6', 'A_7', 'A_8', 'A_9']
+    - sample.id='A' files=['work/DUMMY/from_s3/A_0', 'work/DUMMY/from_s3/A_1', 'work/DUMMY/from_s3/A_2', 'work/DUMMY/from_s3/A_3', 'work/DUMMY/from_s3/A_4', 'work/DUMMY/from_s3/A_5', 'work/DUMMY/from_s3/A_6', 'work/DUMMY/from_s3/A_7', 'work/DUMMY/from_s3/A_8', 'work/DUMMY/from_s3/A_9']
     - sample.id='B' sample.s3_remote_keys=['B_0', 'B_1', 'B_2', 'B_3', 'B_4', 'B_5', 'B_6', 'B_7', 'B_8', 'B_9']
+    - sample.id='B' files=['work/DUMMY/from_s3/B_0', 'work/DUMMY/from_s3/B_1', 'work/DUMMY/from_s3/B_2', 'work/DUMMY/from_s3/B_3', 'work/DUMMY/from_s3/B_4', 'work/DUMMY/from_s3/B_5', 'work/DUMMY/from_s3/B_6', 'work/DUMMY/from_s3/B_7', 'work/DUMMY/from_s3/B_8', 'work/DUMMY/from_s3/B_9']

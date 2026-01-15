@@ -34,7 +34,6 @@ def hcp_fetch(
         use_dill=True,
     ) as pool:
         for sample in samples.without_files:
-            sample.files = []
             if sample.hcp_remote_keys is None:
                 logger.warning(f"No backup for {sample.id}")
                 continue
@@ -44,7 +43,7 @@ def hcp_fetch(
                 local_path = fastq_temp / Path(remote_key).name
 
                 if local_path.exists():
-                    sample.files.insert(f_idx, local_path)
+                    sample.files[f_idx] = local_path
                     logger.debug(f"Found {local_path.name} locally")
                     cleaner.register(local_path.resolve())
                     continue
