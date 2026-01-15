@@ -3,6 +3,7 @@
 from functools import partial
 from logging import LoggerAdapter
 from pathlib import Path
+from threading import Lock
 
 from cellophane import Cleaner, Config, Executor, Samples, pre_hook
 from mpire.async_result import AsyncResult
@@ -28,6 +29,7 @@ def unpack(
 ) -> Samples:
     """Extract petagene fasterq files."""
     results: list[AsyncResult] = []
+    sample_locks = {sample.uuid: Lock() for sample in samples}
     for sample, idx, path, extractor in (
         (s, i, p, EXTRACORS[Path(p).suffix])
         for s in samples
@@ -46,11 +48,11 @@ def unpack(
                 extractor=extractor,
                 timeout=config.unpack.timeout,
                 sample=sample,
-                idx=idx,
                 logger=logger,
                 path=path,
                 cleaner=cleaner,
                 workdir=workdir / "unpack",
+                sample_lock=sample_locks[sample.uuid],
             ),
             error_callback=partial(
                 error_callback,
