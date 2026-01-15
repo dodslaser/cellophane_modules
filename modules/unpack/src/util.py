@@ -3,6 +3,7 @@
 from copy import copy
 from logging import LoggerAdapter
 from pathlib import Path
+from threading import Lock
 from time import sleep
 
 from cellophane import Cleaner, Sample
@@ -16,11 +17,11 @@ def callback(
     extractor: Extractor,
     timeout: int,
     sample: Sample,
-    idx: int,
     logger: LoggerAdapter,
     path: Path,
     cleaner: Cleaner,
     workdir: Path,
+    sample_lock: Lock,
 ) -> None:
     del result  # Unused
 
@@ -39,13 +40,19 @@ def callback(
             f"not found after {timeout} seconds"
         )
 
-    for extracted_path in extracted_paths:
-        logger.debug(f"Extracted {extracted_path.name}")
-        sample.files.insert(idx, extracted_path)
-        cleaner.register(extracted_path.resolve())
+    with sample_lock:
+        try:
+            _idx = sample.files.index(path)
+        except ValueError:
+            logger.error(f"Compressed file '{path.name}' no longer in sample files")
+            return
+        else:
+            sample.files.remove(path)
+        for extracted_path in extracted_paths[::-1]:
+            logger.debug(f"Extracted {extracted_path.name}")
+            sample.files.insert(_idx, extracted_path)
+            cleaner.register(extracted_path.resolve())
 
-    if path in sample.files:
-        sample.files.remove(path)
 
 
 def error_callback(
@@ -60,7 +67,10 @@ def error_callback(
 ) -> None:
     logger.error(f"Failed to extract {path.name}: {exception!r}")
     sample.fail(f"Failed to extract {path.name}")
-    if path in sample.files:
+    try:
         sample.files.remove(path)
+    except ValueError:
+        logger.error(f"Compressed file '{path.name}' no longer in sample files")
+
     for extracted_path in extractor.extracted_paths(workdir, path):
         cleaner.register(extracted_path.resolve())

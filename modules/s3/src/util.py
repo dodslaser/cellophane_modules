@@ -74,7 +74,7 @@ def callback(
 
     def inner(local_path: Path) -> None:
         logger.debug(f"Fetched {local_path.name} from s3 bucket '{bucket}'")
-        sample.files.insert(f_idx, local_path)
+        sample.files[f_idx] = local_path
         cleaner.register(local_path.resolve())
 
     return inner
