@@ -92,3 +92,54 @@ def error_callback(
         sample.fail(f"Failed to fetch backup from s3 bucket '{bucket}'")
 
     return inner
+
+
+def upload(
+    *,
+    credentials: dict,
+    local_path: Path,
+    remote_key: str,
+    bucket: str,
+) -> Path:
+    """Uploads a file to S3."""
+    sys.stdout = open("/dev/null", "w", encoding="utf-8")
+    sys.stderr = open("/dev/null", "w", encoding="utf-8")
+    disable_warnings(InsecureRequestWarning)
+
+    _session = _get_s3_session(credentials=credentials)
+    _bucket = _session.Bucket(bucket)
+    _bucket.upload_file(
+        Filename=str(local_path),
+        Key=remote_key,
+        ExtraArgs={"ChecksumAlgorithm": "SHA256"}
+    )
+
+    return local_path
+
+
+def upload_callback(
+    logger: LoggerAdapter,
+    bucket: str,
+    remote_key: str,
+) -> Callable[[Path], None]:
+    """Callback for uploading files to S3."""
+
+    def inner(local_path: Path) -> None:
+        logger.debug(f"Uploaded {local_path.name} to s3://{bucket}/{remote_key}")
+
+    return inner
+
+
+def upload_error_callback(
+    logger: LoggerAdapter,
+    bucket: str,
+    remote_key: str,
+) -> Callable[[Exception], None]:
+    """Error callback for uploading files to S3."""
+
+    def inner(exception: Exception) -> None:
+        logger.error(
+            f"Failed to upload {remote_key} to s3 bucket '{bucket}' ({exception})"
+        )
+
+    return inner
