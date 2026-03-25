@@ -2,11 +2,20 @@
 
 from logging import LoggerAdapter
 from pathlib import Path
+from urllib.parse import urlparse
 
-from cellophane import Cleaner, Config, Samples, pre_hook
+from cellophane import Cleaner, Config, Samples, pre_hook, post_hook
 from mpire import WorkerPool
 
-from .util import callback, error_callback, fetch, get_endpoint_credentials
+from .util import (
+    callback,
+    error_callback,
+    fetch,
+    get_endpoint_credentials,
+    upload,
+    upload_callback,
+    upload_error_callback,
+)
 
 
 @pre_hook(after=["slims_fetch"])
@@ -83,3 +92,78 @@ def s3_fetch(
         pool.join()
 
     return samples
+
+
+@post_hook(label="S3 Upload", condition="complete")
+def s3_upload_results(
+    samples: Samples,
+    config: Config,
+    logger: LoggerAdapter,
+    **_,
+) -> None:
+    """Upload output files to S3."""
+
+    if not config.s3.upload.get("enable"):
+        logger.info("S3 upload is disabled, skipping")
+        return
+    if not config.s3.get("credentials"):
+        logger.warning("Missing credentials for S3 upload, skipping")
+        return
+    if not samples.output:
+        logger.warning("No output to upload to S3, skipping")
+        return
+
+    endpoint = config.s3.upload.get("endpoint")
+    if not (credentials := get_endpoint_credentials(
+        config.s3.get("credentials"),
+        endpoint,
+    )):
+        logger.warning(f"No credentials for S3 endpoint '{endpoint}', skipping")
+        return
+
+    upload_path = config.s3.upload.get("path")
+    parsed = urlparse(upload_path)
+    upload_bucket = parsed.netloc
+    # AWS keys do not start with a slash, but urlparse includes the leading slash in the path, so we need to remove it
+    upload_prefix = parsed.path.lstrip("/")
+
+
+    logger.info(f"Uploading output to {upload_path}")
+
+    with WorkerPool(
+        n_jobs=config.s3.parallel,
+        use_dill=True,
+    ) as pool:
+        for output in samples.output:
+            if not output.src.exists():
+                logger.warning(f"{output.src} does not exist")
+                continue
+
+            # Preserve directory structure of results in S3
+            # output.dst is already prefixed with resultdir
+            relative_dst = output.dst.relative_to(config.get("resultdir"))
+            # Making sure to avoid double slashes
+            remote_key = f"{upload_prefix.rstrip('/')}/{relative_dst}"
+            pool.apply_async(
+                upload,
+                kwargs={
+                    "credentials": credentials,
+                    "local_path": output.src,
+                    "remote_key": remote_key,
+                    "bucket": upload_bucket,
+                },
+                callback=upload_callback(
+                    logger=logger,
+                    bucket=upload_bucket,
+                    remote_key=remote_key,
+                ),
+                error_callback=upload_error_callback(
+                    logger=logger,
+                    bucket=upload_bucket,
+                    remote_key=remote_key,
+                ),
+            )
+
+        pool.join()
+
+    logger.info("Finished uploading output to S3")
