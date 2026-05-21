@@ -86,5 +86,18 @@
         ]
       }
     }
+  },
+  "$module": {
+    "versions": {
+      "v1.0.0": {
+        "cellophane": [
+          "${INPUTS_CELLAPHANE_TAG}",
+          "${INPUTS_CELLAPHANE_TAG}",
+          "${INPUTS_CELLAPHANE_TAG}"
+        ],
+        "tag": "hcp/v1.0.0"
+      }
+    },
+    "latest": "v1.0.0"
   }
 }
