@@ -47,28 +47,25 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: latest-tag
-        id: latest-tag
-        run: |
-          tag=$(git tag --list --sort=-committerdate -- "${INPUTS_MODULE}/*" | head -n1)
-          code=$?; [[ "$code" != "0" ]] && exit $code
-          echo tag=$tag | tee "$GITHUB_OUTPUT"
       - name: get-commits
         id: get-commits
-        env:
-          LATEST_TAG: ${{ steps.latest-tag.outputs.tag }}
         run: |
-          commits=$(git rev-list --no-commit-header --format=%s ${LATEST_TAG}.. -- ${INPUTS_PATH})
-          code=$?; [[ "$code" != "0" ]] && exit $code
-          commits="${commits//'%'/'%25'}"
-          commits="${commits//$'\n'/'%0A'}"
-          commits="${commits//$'\r'/'%0D'}"
-          echo "::set-output name=commits::$commits"
+          set -x
+          TAG=$(jq -r --arg module "$INPUTS_MODULE" '.[$module] | .versions[.latest].tag' modules.json)
+          TAG=${TAG#null}
+          COMMITS=$(git rev-list --no-commit-header --format=%s ${TAG+$TAG..} -- ${INPUTS_PATH})
+          CODE=$?; [[ "$CODE" != "0" ]] && exit $CODE
+          COMMITS="${COMMITS//'%'/'%25'}"
+          COMMITS="${COMMITS//$'\n'/'%0A'}"
+          COMMITS="${COMMITS//$'\r'/'%0D'}"
+
+          echo latest-tag=$TAG | tee "$GITHUB_OUTPUT"
+          echo "::set-output name=commits::$COMMITS"
       - uses: dodslaser/semver-action@1b95f7b177b1d974bbc8fe9edb440debb4ac70c2
         id: semver
         with:
           token: ${{ github.token }}
-          branch: ${{ steps.latest-tag.outputs.tag }}
+          branch: ${{ steps.get-commits.outputs.latest-tag }}
           prefix: '${{ inputs.module }}/'
           additionalCommits: ${{ steps.get-commits.outputs.commits }}
           noVersionBumpBehavior: patch
@@ -79,8 +76,10 @@ jobs:
           NEXT_TAG: ${{ steps.semver.outputs.next }}
         run: |
           current=$(sed 's,^.*/,,' <<< "${CURRENT_TAG}")
-          code=$?; [[ "$code" != "0" ]] && exit $code
+          CODE=$?; [[ "$CODE" != "0" ]] && exit $CODE
+
           next=$(sed 's,^.*/,,' <<< "${NEXT_TAG}")
-          code=$?; [[ "$code" != "0" ]] && exit $code
+          CODE=$?; [[ "$CODE" != "0" ]] && exit $CODE
+
           echo current-version=$current | tee -a "$GITHUB_OUTPUT"
           echo next-version=$next | tee -a "$GITHUB_OUTPUT"

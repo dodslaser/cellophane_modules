@@ -240,9 +240,9 @@ jobs:
         env:
           JQ_SCRIPT: |
             (. | flatten) as $cellophane
-            | $modules
-            | .[$module].versions[$version] = {cellophane: $cellophane, tag: $tag}
-            | .[$module].latest = $version
+            | $modules[$module]
+            | .versions[$version] = {cellophane: $cellophane, tag: $tag}
+            | .latest = $version
         run: |
           _modules=$(
             jq \

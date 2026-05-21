@@ -56,6 +56,6 @@ jobs:
           uvx --from=git-cliff@2.13.1 git-cliff \
             --unreleased \
             --include-path "${GLOB}" \
-            --tag-pattern "${INPUTS_MODULE}/[0-9]+.[0-9]+.[0-9]+" \
+            --tag-pattern "${INPUTS_MODULE}/v?[0-9]+.[0-9]+.[0-9]+" \
             --config cliff.toml | tee -a "$GITHUB_OUTPUT"
           echo 'EOF' >> "$GITHUB_OUTPUT"
