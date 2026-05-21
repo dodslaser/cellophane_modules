@@ -29,6 +29,10 @@ on:  # yamllint disable-line rule:truthy
         description: 'Current version (eg. v1.2.4)'
         value: ${{ jobs.modules-semver.outputs.current-version }}
 
+env:
+  INPUTS_MODULE: ${{ inputs.module }}
+  INPUTS_PATH: ${{ inputs.path }}
+
 jobs:
   modules-semver:
     name: Calculate semver change
@@ -39,19 +43,22 @@ jobs:
       next-version: ${{ steps.format-version.outputs.next-version }}
       current-version: ${{ steps.format-version.outputs.current-version }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: latest-tag
         id: latest-tag
         run: |
-          tag=$(git tag --list --sort=-committerdate -- '${{ inputs.module }}/*' | head -n1)
+          tag=$(git tag --list --sort=-committerdate -- "${INPUTS_MODULE}/*" | head -n1)
           code=$?; [[ "$code" != "0" ]] && exit $code
           echo tag=$tag | tee "$GITHUB_OUTPUT"
       - name: get-commits
         id: get-commits
+        env:
+          LATEST_TAG: ${{ steps.latest-tag.outputs.tag }}
         run: |
-          commits=$(git rev-list --no-commit-header --format=%s ${{ steps.latest-tag.outputs.tag }}.. -- ${{ inputs.path }})
+          commits=$(git rev-list --no-commit-header --format=%s ${LATEST_TAG}.. -- ${INPUTS_PATH})
           code=$?; [[ "$code" != "0" ]] && exit $code
           commits="${commits//'%'/'%25'}"
           commits="${commits//$'\n'/'%0A'}"
@@ -67,10 +74,13 @@ jobs:
           noVersionBumpBehavior: patch
       - name: format-version
         id: format-version
+        env:
+          CURRENT_TAG: ${{ steps.semver.outputs.current }}
+          NEXT_TAG: ${{ steps.semver.outputs.next }}
         run: |
-          current=$(sed 's,^.*/,,' <<< '${{ steps.semver.outputs.current }}')
+          current=$(sed 's,^.*/,,' <<< "${CURRENT_TAG}")
           code=$?; [[ "$code" != "0" ]] && exit $code
-          next=$(sed 's,^.*/,,' <<< '${{ steps.semver.outputs.next }}')
+          next=$(sed 's,^.*/,,' <<< "${NEXT_TAG}")
           code=$?; [[ "$code" != "0" ]] && exit $code
           echo current-version=$current | tee -a "$GITHUB_OUTPUT"
           echo next-version=$next | tee -a "$GITHUB_OUTPUT"

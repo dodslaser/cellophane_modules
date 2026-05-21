@@ -46,3 +46,5 @@ nfcore_samplesheet(self, *_, location: str | Path, **kwargs) -> Path:
 ```
 
 Write an nf-core compatible sample sheet at `location`. Any `**kwargs` will be added as columns. Values in `**kwargs` should be strings (or coercible to strings), where strings will be formatted with access to `sample` (eg. `some_value="{sample.value}"`).
+
+TEST A
