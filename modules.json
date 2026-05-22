@@ -1,115 +1,36 @@
 {
-  "grid_engine": {
-    "path": "modules/grid_engine/",
-    "versions": {
-      "dev": {
-        "tag": "main",
-        "cellophane": [
-          ">0.0.0"
-        ]
-      }
-    }
-  },
-  "hcp": {
-    "path": "modules/hcp/",
-    "versions": {
-      "dev": {
-        "tag": "main",
-        "cellophane": [
-          ">0.0.0"
-        ]
-      }
-    }
-  },
-  "s3": {
-    "path": "modules/s3/",
-    "versions": {
-      "dev": {
-        "tag": "main",
-        "cellophane": [
-          ">0.0.0"
-        ]
-      }
-    }
-  },
-  "mail": {
-    "path": "modules/mail/",
-    "versions": {
-      "dev": {
-        "tag": "main",
-        "cellophane": [
-          ">0.0.0"
-        ]
-      }
-    }
-  },
-  "nextflow": {
-    "path": "modules/nextflow/",
-    "versions": {
-      "dev": {
-        "tag": "main",
-        "cellophane": [
-          ">0.0.0"
-        ]
-      },
-      "v1.0.0": {
-        "cellophane": [
-          "1.2.0",
-          "dev",
-          "latest"
-        ],
-        "tag": "nextflow/v1.0.0"
-      },
-      "v1.1.0": {
-        "cellophane": [
-          "1.2.0",
-          "dev",
-          "latest"
-        ],
-        "tag": "nextflow/v1.1.0"
-      }
+  "path": "modules/nextflow/",
+  "versions": {
+    "dev": {
+      "tag": "main",
+      "cellophane": [
+        ">0.0.0"
+      ]
     },
-    "latest": "v1.1.0"
-  },
-  "rsync": {
-    "path": "modules/rsync/",
-    "versions": {
-      "dev": {
-        "tag": "main",
-        "cellophane": [
-          ">0.0.0"
-        ]
-      }
-    }
-  },
-  "slims": {
-    "path": "modules/slims_/",
-    "versions": {
-      "dev": {
-        "tag": "main",
-        "cellophane": [
-          ">0.0.0"
-        ]
-      },
-      "v1.0.0": {
-        "cellophane": [
-          "1.2.0",
-          "dev"
-        ],
-        "tag": "slims/v1.0.0"
-      }
+    "v1.0.0": {
+      "cellophane": [
+        "1.2.0",
+        "dev",
+        "latest"
+      ],
+      "tag": "nextflow/v1.0.0"
     },
-    "latest": "v1.0.0"
-  },
-  "unpack": {
-    "path": "modules/unpack/",
-    "versions": {
-      "dev": {
-        "tag": "main",
-        "cellophane": [
-          ">0.0.0"
-        ]
-      }
+    "v1.1.0": {
+      "cellophane": [
+        "1.2.0",
+        "dev",
+        "latest"
+      ],
+      "tag": "nextflow/v1.1.0"
+    },
+    "v1.1.1": {
+      "cellophane": [
+        "1.2.0",
+        "dev",
+        "latest"
+      ],
+      "tag": "nextflow/v1.1.1"
     }
-  }
+  },
+  "latest": "v1.1.1"
 }
